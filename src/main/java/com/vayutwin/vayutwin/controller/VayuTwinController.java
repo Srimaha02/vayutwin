@@ -22,6 +22,7 @@ public class VayuTwinController {
     public SimulationResponse simulate(@RequestBody SimulationRequest request) {
         return advisorService.simulate(request);
     }
+
     @PostMapping("/chat")
     public Map<String, Object> chat(@RequestBody Map<String, Object> req) {
         String question = String.valueOf(req.getOrDefault("question", ""));
@@ -31,7 +32,7 @@ public class VayuTwinController {
         double pm10 = Double.parseDouble(String.valueOf(req.getOrDefault("pm10", "70")));
         double no2 = Double.parseDouble(String.valueOf(req.getOrDefault("no2", "22")));
 
-        String reply = geminiAdvisorService.answerAirQuestion(question, location, (int) aqi, pm25, pm10, no2);
+        String reply = advisorService.answerAirQuestion(question, location, (int) aqi, pm25, pm10, no2);
         return Map.of("reply", reply);
     }
 }
