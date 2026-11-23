@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VayuTwin — Hyperlocal Air Intelligence, Green Oasis & Civic Radar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #D6DFDA;
+            color: #1B2623;
+            -webkit-font-smoothing: antialiased;
+        }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .matte-card {
+            background-color: #ECF0EE;
+            border: 1px solid #C0CCC6;
+            box-shadow: 0 4px 20px -4px rgba(20, 34, 29, 0.08);
+        }
+        .inner-tile {
+            background-color: #E2E8E5;
+            border: 1px solid #C5D1CB;
+        }
+        .nav-active { background-color: #27473E; color: #ECF0EE; }
+        .nav-inactive { color: #3A4B45; }
+        .nav-inactive:hover { background-color: #D3DDD8; }
+        #wardMap {
+            height: 315px;
+            width: 100%;
+            border-radius: 1rem;
+            z-index: 1;
+            filter: saturate(0.9) contrast(0.98);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+<!-- TOP HEADER -->
+<header class="bg-[#E4ECE8]/95 backdrop-blur-md border-b border-[#C0CCC6] sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-5 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-[#27473E] text-[#ECF0EE] flex items-center justify-center">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <path d="M3 10h12a2.5 2.5 0 1 0-2.3-3.4M3 15h16a2 2 0 1 1-1.8 2.8M5 19h7"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-base font-extrabold tracking-tight text-[#16221E]">VayuTwin</h1>
+                <p class="text-[11px] text-[#495A54]">Hyperlocal Air Twin, Green Oasis Finder &amp; Civic Smoke Radar</p>
+            </div>
+        </div>
+
+        <nav class="flex flex-wrap items-center gap-1 bg-[#DAE3DF] p-1 rounded-2xl border border-[#BFCBC5]">
+            <button onclick="goToPage(1)" id="tab1" class="nav-active px-3 py-1.5 rounded-xl text-xs font-bold transition">1. Green Oasis &amp; Route Map</button>
+            <button onclick="goToPage(2)" id="tab2" class="nav-inactive px-3 py-1.5 rounded-xl text-xs font-bold transition">2. Window &amp; Walk Clock</button>
+            <button onclick="goToPage(3)" id="tab3" class="nav-inactive px-3 py-1.5 rounded-xl text-xs font-bold transition">3. Zero-Cost Room Guide</button>
+            <button onclick="goToPage(4)" id="tab4" class="nav-inactive px-3 py-1.5 rounded-xl text-xs font-bold transition">4. My Daily Impact</button>
+            <button onclick="goToPage(5)" id="tab5" class="nav-inactive px-3 py-1.5 rounded-xl text-xs font-bold transition">5. Gemini Air Co-Pilot</button>
+        </nav>
+
+        <span id="aiBadge" class="mono text-[11px] font-bold px-3 py-1.5 rounded-xl bg-[#DAE3DF] border border-[#BFCBC5] text-[#27473E]">
+            ● Live Sync
+        </span>
+    </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-5 py-5 w-full flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+    <!-- LEFT 8 COLUMNS -->
+    <div class="lg:col-span-8 space-y-4">
+
+        <!-- ==================== PAGE 1: EXACT HOME-DESTINATION ROUTE + GREEN OASIS + SMOKE RADAR ==================== -->
+        <section id="page1" class="matte-card rounded-3xl p-6 space-y-4">
+            <div class="bg-[#DAE6E0] border border-[#B0C4BA] rounded-2xl p-3.5 text-xs text-[#1B352E] flex flex-wrap items-center justify-between gap-2">
+                <div>
+                    <strong>Step 1 • Street Scanner &amp; Commute Route Mapper:</strong> Type your <strong>Start (H)</strong> &amp; <strong>Destination (D)</strong> below—or select a map click mode to pin directly on the map.
+                </div>
+                <div class="flex flex-wrap gap-1.5">
+                    <button onclick="setPinMode('HOME')" id="btnPinHome" class="px-2.5 py-1 rounded-lg bg-[#27473E] text-[#ECF0EE] font-bold text-[11px]">Click = Home (H)</button>
+                    <button onclick="setPinMode('WORK')" id="btnPinWork" class="px-2.5 py-1 rounded-lg bg-[#ECF0EE] border border-[#27473E] text-[#27473E] font-bold text-[11px]">Click = Dest (D)</button>
+                    <button onclick="setPinMode('SMOKE')" id="btnPinSmoke" class="px-2.5 py-1 rounded-lg bg-[#ECF0EE] border border-[#8C3B2B] text-[#8C3B2B] font-bold text-[11px]">Click = Flag Smoke</button>
+                </div>
+            </div>
+
+            <!-- DUAL SEARCH INPUTS FOR EXACT HOME (H) -> DESTINATION (D) ROUTING -->
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center text-xs">
+                <div class="sm:col-span-5 flex items-center gap-1.5 bg-[#E2E8E5] border border-[#B5C3BC] rounded-xl px-2.5 py-1.5">
+                    <span class="w-5 h-5 rounded-full bg-[#27473E] text-[#ECF0EE] flex items-center justify-center font-extrabold text-[10px] shrink-0">H</span>
+                    <input type="text" id="homeInput" value="Sholinganallur, Chennai" placeholder="Home / Start area..."
+                           onkeydown="if(event.key==='Enter') mapRouteFromInputs()"
+                           class="w-full bg-transparent font-bold text-[#16221E] focus:outline-none">
+                </div>
+                <div class="sm:col-span-5 flex items-center gap-1.5 bg-[#E2E8E5] border border-[#B5C3BC] rounded-xl px-2.5 py-1.5">
+                    <span class="w-5 h-5 rounded-full bg-[#8C3B2B] text-[#ECF0EE] flex items-center justify-center font-extrabold text-[10px] shrink-0">D</span>
+                    <input type="text" id="destInput" value="Guindy, Chennai" placeholder="Destination area..."
+                           onkeydown="if(event.key==='Enter') mapRouteFromInputs()"
+                           class="w-full bg-transparent font-bold text-[#16221E] focus:outline-none">
+                </div>
+                <button onclick="mapRouteFromInputs()" class="sm:col-span-2 py-2 rounded-xl bg-[#27473E] text-[#ECF0EE] font-bold hover:opacity-95">
+                    Map Route
+                </button>
+            </div>
+
+            <!-- Quick City Presets -->
+            <div class="flex flex-wrap items-center gap-1.5 text-xs">
+                <span class="text-[11px] font-bold text-[#495A54]">Quick Presets:</span>
+                <button onclick="setPresetRoute('Sholinganallur, Chennai', 'Guindy, Chennai')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] border border-[#C0CCC6] font-semibold">OMR → Guindy</button>
+                <button onclick="setPresetRoute('Anna Nagar, Chennai', 'T Nagar, Chennai')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] border border-[#C0CCC6] font-semibold">Anna Nagar → T Nagar</button>
+                <button onclick="setPresetRoute('Indiranagar, Bengaluru', 'Electronic City, Bengaluru')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] border border-[#C0CCC6] font-semibold">Bengaluru</button>
+                <button onclick="setPresetRoute('Andheri West, Mumbai', 'BKC, Mumbai')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] border border-[#C0CCC6] font-semibold">Mumbai</button>
+                <button onclick="setPresetRoute('Connaught Place, New Delhi', 'Noida Sector 62')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] border border-[#C0CCC6] font-semibold">Delhi NCR</button>
+            </div>
+
+            <!-- Interactive Map -->
+            <div id="wardMap" class="border border-[#B5C3BC]"></div>
+
+            <!-- WALKABLE CLEAN-AIR GREEN OASIS POCKETS -->
+            <div class="inner-tile rounded-2xl p-4 space-y-2">
+                <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <strong class="text-[#16221E]">Nearby Clean-Air Green Pockets (Parks &amp; Lakes)</strong>
+                    <span id="oasisCountTag" class="mono text-[11px] font-bold px-2.5 py-0.5 rounded-lg bg-[#DAE6E0] text-[#27473E]">Scanning green pockets...</span>
+                </div>
+                <div id="greenOasisList" class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs"></div>
+            </div>
+
+            <!-- SAFE CROWDSOURCED STREET CAUTION PANEL (WITH CONFIRM, UNDO & 2-HR AUTO-EXPIRE) -->
+            <div id="smokeAlertPanel" class="hidden inner-tile rounded-2xl p-4 border-l-4 border-l-[#8C3B2B] bg-[#F3E9E6] space-y-2 text-xs">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <strong class="text-[#8C3B2B]">Temporary Street Smoke / Dust Caution</strong>
+                        <span class="mono text-[10px] px-2 py-0.5 rounded bg-[#8C3B2B]/15 text-[#8C3B2B] font-bold">Auto-clears in 2 hrs</span>
+                    </div>
+                    <div class="flex gap-1.5">
+                        <button onclick="undoLastSmokePin()" class="px-2.5 py-1 rounded-lg bg-[#ECF0EE] border border-[#8C3B2B] text-[#8C3B2B] text-[11px] font-bold">Undo Pin</button>
+                        <button onclick="copySmokeReport()" id="copySmokeBtn" class="px-3 py-1 rounded-lg bg-[#8C3B2B] text-[#ECF0EE] text-[11px] font-bold">Copy Street Alert</button>
+                    </div>
+                </div>
+                <p id="smokeReportText" class="text-[#2B1E1B] leading-relaxed"></p>
+            </div>
+
+            <!-- Real Road Commute Corridor Comparison Bar -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div class="inner-tile rounded-2xl p-3.5">
+                    <span class="text-[10px] font-bold uppercase text-[#495A54] block">Road Route Distance (H → D)</span>
+                    <strong id="corridorDist" class="mono text-sm text-[#16221E] mt-1 block">-- km</strong>
+                    <span class="text-[11px] text-[#495A54]">Real road path via OSRM</span>
+                </div>
+                <div class="inner-tile rounded-2xl p-3.5 border-l-4 border-l-[#8C3B2B]">
+                    <span class="text-[10px] font-bold uppercase text-[#8C3B2B] block">Main Highway (No Mask)</span>
+                    <strong id="highwayDose" class="mono text-base text-[#16221E] mt-0.5 block">-- µg / day</strong>
+                    <span id="highwayPlain" class="text-[11px] text-[#8C3B2B] font-semibold">--</span>
+                </div>
+                <div class="inner-tile rounded-2xl p-3.5 border-l-4 border-l-[#27473E] bg-[#DAE6E0]">
+                    <span class="text-[10px] font-bold uppercase text-[#27473E] block">Green Side-Lane + N95</span>
+                    <strong id="greenDose" class="mono text-base text-[#16221E] mt-0.5 block">-- µg / day</strong>
+                    <span id="greenPlain" class="text-[11px] text-[#27473E] font-bold">--</span>
+                </div>
+            </div>
+
+            <div class="flex justify-end">
+                <button onclick="goToPage(2)" class="px-5 py-2.5 rounded-xl bg-[#27473E] text-[#ECF0EE] text-xs font-bold">
+                    Next: Live Window-Opening &amp; Walk Clock →
+                </button>
+            </div>
+        </section>
+
+        <!-- ==================== PAGE 2: WINDOW-OPENING & WIND DISPERSION SCHEDULER ==================== -->
+        <section id="page2" class="hidden matte-card rounded-3xl p-6 space-y-4">
+            <div class="bg-[#DAE6E0] border border-[#B0C4BA] rounded-2xl p-3.5 text-xs text-[#1B352E]">
+                <strong>Step 2 • Smart Window &amp; Outdoor Clock:</strong> Combines live hourly PM2.5 + Wind Speed to tell you the exact hours to <strong>open windows for fresh cross-ventilation</strong> vs. <strong>seal windows against thermal smog</strong>.
+            </div>
+
+            <div class="flex items-center justify-between">
+                <h2 class="text-base font-extrabold text-[#16221E]">24-Hour Smog &amp; Wind Dispersion Curve</h2>
+                <span id="chartLocationTag" class="mono text-xs font-bold px-3 py-1 rounded-xl bg-[#E2E8E5] border border-[#C0CCC6]">Chennai</span>
+            </div>
+
+            <div class="inner-tile rounded-2xl p-4 h-64">
+                <canvas id="smogChart"></canvas>
+            </div>
+
+            <div class="space-y-2">
+                <span class="text-[11px] font-extrabold uppercase tracking-wider text-[#495A54]">Hour-by-Hour Window &amp; Outdoor Status</span>
+                <div id="windowScheduleGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs"></div>
+            </div>
+
+            <div class="flex justify-between pt-1">
+                <button onclick="goToPage(1)" class="px-4 py-2 rounded-xl bg-[#E2E8E5] border border-[#B5C3BC] text-xs font-bold">← Back</button>
+                <button onclick="goToPage(3)" class="px-5 py-2.5 rounded-xl bg-[#27473E] text-[#ECF0EE] text-xs font-bold">Next: Zero-Cost Room Guide →</button>
+            </div>
+        </section>
+
+        <!-- ==================== PAGE 3: ZERO-COST ROOM & ROUTINE AIR GUIDE ==================== -->
+        <section id="page3" class="hidden matte-card rounded-3xl p-6 space-y-4">
+            <div class="bg-[#DAE6E0] border border-[#B0C4BA] rounded-2xl p-3.5 text-xs text-[#1B352E]">
+                <strong>Step 3 • Zero-Cost Room &amp; Routine Air Guide:</strong> Select your living space and daily schedule below to get <strong>100% free, practical habits</strong> that keep indoor dust low without buying any gadgets.
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                    <label class="font-bold text-[#16221E] block mb-1">1. Your Living Space</label>
+                    <select id="roomType" onchange="buildRoomPlan()" class="w-full bg-[#E2E8E5] border border-[#B5C3BC] rounded-xl px-3 py-2 font-semibold">
+                        <option value="BEDROOM" selected>Bedroom (Night Sleep Protection)</option>
+                        <option value="HALL">Main-Road Facing Hall / Living Room</option>
+                        <option value="HOSTEL">Hostel / PG Room (Single Window)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="font-bold text-[#16221E] block mb-1">2. Who Is Home &amp; Daily Routine</label>
+                    <select id="routineType" onchange="buildRoomPlan()" class="w-full bg-[#E2E8E5] border border-[#B5C3BC] rounded-xl px-3 py-2 font-semibold">
+                        <option value="COMMUTER" selected>College / Office Commuter</option>
+                        <option value="WFH">Work / Study From Home All Day</option>
+                        <option value="FAMILY">Kids or Elderly Parents at Home</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="roomPlanCards" class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs"></div>
+
+            <div class="inner-tile rounded-2xl p-4 bg-[#DAE6E0] border-[#B0C4BA] flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span id="roomEfficiencyText" class="font-bold text-[#16221E]">Zero-Cost Indoor Dust Reduction: ~42% (No gadgets needed)</span>
+                <button onclick="askAiForRoom()" class="px-3.5 py-1.5 rounded-xl bg-[#27473E] text-[#ECF0EE] font-bold">Ask Gemini for Custom Routine →</button>
+            </div>
+
+            <div class="flex justify-between pt-1">
+                <button onclick="goToPage(2)" class="px-4 py-2 rounded-xl bg-[#E2E8E5] border border-[#B5C3BC] text-xs font-bold">← Back</button>
+                <button onclick="goToPage(4)" class="px-5 py-2.5 rounded-xl bg-[#27473E] text-[#ECF0EE] text-xs font-bold">Next: My Daily Impact →</button>
+            </div>
+        </section>
+
+        <!-- ==================== PAGE 4: PERSONAL CLEAN-AIR HABIT IMPACT SIMULATOR ==================== -->
+        <section id="page4" class="hidden matte-card rounded-3xl p-6 space-y-4">
+            <div class="bg-[#DAE6E0] border border-[#B0C4BA] rounded-2xl p-3.5 text-xs text-[#1B352E]">
+                <strong>Step 4 • My Personal Clean-Air Impact:</strong> Adjust your daily commute distance and toggle the habits below—watch the chart update live to show how much carbon smoke and lung dust <strong>you</strong> prevent in 1 year.
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div class="inner-tile rounded-2xl p-3.5 space-y-1.5">
+                    <label class="font-bold text-[#16221E] block">Daily Round-Trip Travel: <span id="kmLabel" class="mono text-[#27473E]">15 km / day</span></label>
+                    <input type="range" id="dailyKm" min="2" max="60" step="1" value="15" oninput="updateColonyImpact()" class="w-full accent-[#27473E]">
+                    <span class="text-[11px] text-[#495A54] block">College, office, or daily errands</span>
+                </div>
+
+                <div class="inner-tile rounded-2xl p-3.5 flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase text-[#495A54] block">Your Carbon Smoke Cut</span>
+                        <strong id="colonyCo2" class="mono text-xl text-[#27473E]">-- kg / yr</strong>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-bold uppercase text-[#495A54] block">Lung Dust Prevented</span>
+                        <strong id="colonyPm" class="mono text-xl text-[#16221E]">-- g / yr</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                <label class="inner-tile flex items-start justify-between gap-2 p-3 rounded-2xl cursor-pointer hover:border-[#27473E] transition">
+                    <div>
+                        <span class="font-bold text-[#16221E] block">Metro / Bus / Carpool</span>
+                        <span class="text-[11px] text-[#495A54]">3 days a week</span>
+                    </div>
+                    <input type="checkbox" id="chkTransit" checked onchange="updateColonyImpact()" class="w-4 h-4 mt-0.5 accent-[#27473E]">
+                </label>
+
+                <label class="inner-tile flex items-start justify-between gap-2 p-3 rounded-2xl cursor-pointer hover:border-[#27473E] transition">
+                    <div>
+                        <span class="font-bold text-[#16221E] block">24–26°C AC &amp; Power Save</span>
+                        <span class="text-[11px] text-[#495A54]">Switch off idle loads</span>
+                    </div>
+                    <input type="checkbox" id="chkPower" checked onchange="updateColonyImpact()" class="w-4 h-4 mt-0.5 accent-[#27473E]">
+                </label>
+
+                <label class="inner-tile flex items-start justify-between gap-2 p-3 rounded-2xl cursor-pointer hover:border-[#27473E] transition">
+                    <div>
+                        <span class="font-bold text-[#16221E] block">Zero Leaf / Waste Burning</span>
+                        <span class="text-[11px] text-[#495A54]">Compost dry garden waste</span>
+                    </div>
+                    <input type="checkbox" id="chkNoBurn" checked onchange="updateColonyImpact()" class="w-4 h-4 mt-0.5 accent-[#27473E]">
+                </label>
+            </div>
+
+            <div class="inner-tile rounded-2xl p-4 space-y-2">
+                <div class="flex items-center justify-between text-xs">
+                    <strong class="text-[#16221E]">Which Habit Saves the Most Pollution?</strong>
+                    <span class="text-[11px] text-[#495A54]">Measured in kg of CO₂ cut per year</span>
+                </div>
+                <div class="h-44">
+                    <canvas id="impactBarChart"></canvas>
+                </div>
+            </div>
+
+            <div class="inner-tile rounded-2xl p-4 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-[#27473E]">Ready-to-Share Clean-Air Action Note</span>
+                    <button onclick="copyCivicNotice()" id="copyBtn" class="px-3 py-1 rounded-lg bg-[#27473E] text-[#ECF0EE] text-[11px] font-bold">Copy Note</button>
+                </div>
+                <pre id="civicNoticeText" class="whitespace-pre-wrap font-sans text-xs text-[#1F2D29] bg-[#ECF0EE] p-3 rounded-xl border border-[#C0CCC6] leading-relaxed"></pre>
+            </div>
+
+            <div class="flex justify-between pt-1">
+                <button onclick="goToPage(3)" class="px-4 py-2 rounded-xl bg-[#E2E8E5] border border-[#B5C3BC] text-xs font-bold">← Back</button>
+                <button onclick="goToPage(5)" class="px-5 py-2.5 rounded-xl bg-[#27473E] text-[#ECF0EE] text-xs font-bold">Next: Ask Gemini AI Co-Pilot →</button>
+            </div>
+        </section>
+
+        <!-- ==================== PAGE 5: REAL GEMINI AI CO-PILOT ==================== -->
+        <section id="page5" class="hidden matte-card rounded-3xl p-6 space-y-4">
+            <div class="bg-[#DAE6E0] border border-[#B0C4BA] rounded-2xl p-3.5 text-xs text-[#1B352E]">
+                <strong>Step 5 • Live Gemini AI Air Advisor:</strong> Ask any question about your exact street's air quality, nearby green walk parks, asthma care, or indoor ventilation.
+            </div>
+
+            <div class="flex flex-wrap gap-1.5">
+                <button onclick="askQuick('When should I open my windows today based on wind and PM2.5?')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] hover:bg-[#D3DDD8] border border-[#B5C3BC] text-[11px] font-semibold">Best window opening time?</button>
+                <button onclick="askQuick('How can I improve air circulation inside my room without letting smog in?')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] hover:bg-[#D3DDD8] border border-[#B5C3BC] text-[11px] font-semibold">Indoor air circulation?</button>
+                <button onclick="askQuick('What precautions should a 2-wheeler rider take at this AQI?')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] hover:bg-[#D3DDD8] border border-[#B5C3BC] text-[11px] font-semibold">2-wheeler protection?</button>
+            </div>
+
+            <div id="chatBox" class="inner-tile rounded-2xl p-4 h-60 overflow-y-auto space-y-3 text-xs leading-relaxed">
+                <div class="bg-[#DAE6E0] rounded-xl p-3 text-[#16221E]">
+                    <strong>VayuTwin AI:</strong> Live telemetry loaded for <span id="chatLocLabel" class="font-bold">Chennai</span>. Ask anything below!
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <input type="text" id="chatInput" placeholder="Ask any question..." onkeydown="if(event.key==='Enter') sendChat()"
+                       class="flex-1 bg-[#E2E8E5] border border-[#B5C3BC] rounded-xl px-3.5 py-2.5 text-xs text-[#16221E] focus:outline-none focus:border-[#27473E]">
+                <button onclick="sendChat()" class="px-5 py-2.5 rounded-xl bg-[#27473E] text-[#ECF0EE] text-xs font-bold">Ask AI</button>
+            </div>
+        </section>
+    </div>
+
+    <!-- RIGHT 4 COLUMNS: ALWAYS-VISIBLE LIVE ATMOSPHERIC TELEMETRY -->
+    <aside class="lg:col-span-4 matte-card rounded-3xl p-5 space-y-4">
+        <div class="flex items-start justify-between">
+            <div>
+                <span class="mono text-[10px] font-bold uppercase tracking-wider text-[#495A54]">Active Street Sensor</span>
+                <h3 id="pinnedPlaceName" class="text-base font-extrabold text-[#16221E] mt-0.5">Sholinganallur, Chennai</h3>
+                <p id="pinnedCoords" class="mono text-[11px] text-[#495A54]">12.9010° N, 80.2279° E</p>
+            </div>
+            <span id="verdictChip" class="text-xs font-extrabold px-3 py-1 rounded-full bg-amber-900/10 text-amber-900">Moderate</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+            <div class="inner-tile rounded-2xl p-3.5">
+                <span class="text-[11px] font-bold text-[#495A54] block">Live US AQI</span>
+                <span id="liveAqi" class="mono text-2xl font-extrabold text-[#16221E] mt-1 block">--</span>
+                <span class="text-[10px] text-[#586862]">Under 50 is Clean</span>
+            </div>
+            <div class="inner-tile rounded-2xl p-3.5">
+                <span class="text-[11px] font-bold text-[#495A54] block">Passive Smoke</span>
+                <span id="cigEqText" class="mono text-xl font-extrabold text-[#8C3B2B] mt-1 block">-- cig/d</span>
+                <span class="text-[10px] text-[#586862]">22 µg PM2.5 ≈ 1 cig</span>
+            </div>
+        </div>
+
+        <div class="inner-tile rounded-2xl p-4 space-y-2.5">
+            <span class="text-[11px] font-extrabold uppercase tracking-wider text-[#27473E] block">Live Pollutant Spectrum</span>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+                <div class="bg-[#ECF0EE] rounded-xl p-2.5">
+                    <span class="text-[10px] text-[#495A54] block">Fine Dust (PM2.5)</span>
+                    <strong id="valPm25" class="mono text-sm text-[#16221E]">-- µg/m³</strong>
+                </div>
+                <div class="bg-[#ECF0EE] rounded-xl p-2.5">
+                    <span class="text-[10px] text-[#495A54] block">Road Dust (PM10)</span>
+                    <strong id="valPm10" class="mono text-sm text-[#16221E]">-- µg/m³</strong>
+                </div>
+                <div class="bg-[#ECF0EE] rounded-xl p-2.5">
+                    <span class="text-[10px] text-[#495A54] block">Traffic Gas (NO₂)</span>
+                    <strong id="valNo2" class="mono text-sm text-[#16221E]">-- µg/m³</strong>
+                </div>
+                <div class="bg-[#ECF0EE] rounded-xl p-2.5">
+                    <span class="text-[10px] text-[#495A54] block">Ground Ozone (O₃)</span>
+                    <strong id="valO3" class="mono text-sm text-[#16221E]">-- µg/m³</strong>
+                </div>
+                <div class="bg-[#ECF0EE] rounded-xl p-2.5">
+                    <span class="text-[10px] text-[#495A54] block">Wind Dispersion</span>
+                    <strong id="valWind" class="mono text-sm text-[#16221E]">-- km/h</strong>
+                </div>
+                <div class="bg-[#ECF0EE] rounded-xl p-2.5">
+                    <span class="text-[10px] text-[#495A54] block">Sun UV Index</span>
+                    <strong id="valUv" class="mono text-sm text-[#16221E]">--</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="inner-tile rounded-2xl p-3.5 bg-[#DAE6E0] border-[#B0C4BA]">
+            <span class="text-[11px] font-bold text-[#27473E] block">Right Now Window Action</span>
+            <p id="windowNowAdvice" class="text-xs font-extrabold text-[#16221E] mt-1">Checking wind dispersion...</p>
+        </div>
+    </aside>
+
+</main>
+
+<script>
+    let map, homeMarker, workMarker, routeLine, oasisLayer, smokeLayer, smogChart, impactBarChart;
+    let lastSmokeMarker = null;
+    let pinMode = 'HOME';
+    let state = {
+        name: 'Sholinganallur, Chennai',
+        homeLat: 12.9010, homeLng: 80.2279,
+        workLat: 13.0067, workLng: 80.2206,
+        aqi: 112, pm25: 32.4, pm10: 41.2, no2: 5.4, wind: 14,
+        hourlyLabels: ['06:00', '09:00', '12:00', '15:00', '18:00', '21:00'],
+        hourlyPm25: [48, 54, 28, 25, 46, 39]
+    };
+
+    function goToPage(num) {
+        [1, 2, 3, 4, 5].forEach(p => {
+            document.getElementById('page' + p).classList.toggle('hidden', p !== num);
+            document.getElementById('tab' + p).className = (p === num ? 'nav-active' : 'nav-inactive')
+                + ' px-3 py-1.5 rounded-xl text-xs font-bold transition';
+        });
+        if (num === 1 && map) setTimeout(() => map.invalidateSize(), 100);
+        if (num === 2) renderSmogChart();
+        if (num === 3) buildRoomPlan();
+        if (num === 4) updateColonyImpact();
+    }
+
+    function setPinMode(mode) {
+        pinMode = mode;
+        document.getElementById('btnPinHome').className = mode === 'HOME'
+            ? 'px-2.5 py-1 rounded-lg bg-[#27473E] text-[#ECF0EE] font-bold text-[11px]'
+            : 'px-2.5 py-1 rounded-lg bg-[#ECF0EE] border border-[#27473E] text-[#27473E] font-bold text-[11px]';
+        document.getElementById('btnPinWork').className = mode === 'WORK'
+            ? 'px-2.5 py-1 rounded-lg bg-[#27473E] text-[#ECF0EE] font-bold text-[11px]'
+            : 'px-2.5 py-1 rounded-lg bg-[#ECF0EE] border border-[#27473E] text-[#27473E] font-bold text-[11px]';
+        document.getElementById('btnPinSmoke').className = mode === 'SMOKE'
+            ? 'px-2.5 py-1 rounded-lg bg-[#8C3B2B] text-[#ECF0EE] font-bold text-[11px]'
+            : 'px-2.5 py-1 rounded-lg bg-[#ECF0EE] border border-[#8C3B2B] text-[#8C3B2B] font-bold text-[11px]';
+    }
+
+    function makePinIcon(label, bg) {
+        return L.divIcon({
+            className: '',
+            html: `<div style="background:${bg};color:#ECF0EE;width:28px;height:28px;border-radius:50%;border:2.5px solid #ECF0EE;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;box-shadow:0 3px 10px rgba(0,0,0,0.35);">${label}</div>`,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14]
+        });
+    }
+
+    function initMap() {
+        map = L.map('wardMap').setView([12.95, 80.22], 12);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '&copy; OpenStreetMap' }).addTo(map);
+
+        oasisLayer = L.layerGroup().addTo(map);
+        smokeLayer = L.layerGroup().addTo(map);
+
+        homeMarker = L.marker([state.homeLat, state.homeLng], { icon: makePinIcon('H', '#27473E') })
+            .addTo(map)
+            .bindTooltip('Home / Start (H)');
+
+        workMarker = L.marker([state.workLat, state.workLng], { icon: makePinIcon('D', '#8C3B2B') })
+            .addTo(map)
+            .bindTooltip('Destination (D)');
+
+        map.on('click', async (e) => {
+            if (pinMode === 'HOME') {
+                state.homeLat = e.latlng.lat;
+                state.homeLng = e.latlng.lng;
+                homeMarker.setLatLng(e.latlng);
+                await loadCoordinates(state.homeLat, state.homeLng, null, 'homeInput');
+                await drawRealRoadRoute();
+            } else if (pinMode === 'WORK') {
+                state.workLat = e.latlng.lat;
+                state.workLng = e.latlng.lng;
+                workMarker.setLatLng(e.latlng);
+                await reverseFillInput(state.workLat, state.workLng, 'destInput');
+                await drawRealRoadRoute();
+            } else if (pinMode === 'SMOKE') {
+                reportLocalSmokeHotspot(e.latlng.lat, e.latlng.lng);
+            }
+        });
+    }
+
+    async function geocodePlace(query) {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&accept-language=en&countrycodes=in&limit=1&q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        if (data && data.length > 0) {
+            return {
+                lat: parseFloat(data[0].lat),
+                lng: parseFloat(data[0].lon),
+                label: data[0].display_name.split(',').slice(0, 2).join(', ')
+            };
+        }
+        return null;
+    }
+
+    async function reverseFillInput(lat, lng, inputId) {
+        try {
+            const rev = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&accept-language=en&lat=${lat}&lon=${lng}`);
+            const d = await rev.json();
+            const a = d.address || {};
+            const area = a.suburb || a.neighbourhood || a.road || a.town || 'Selected Point';
+            const city = a.city || a.state_district || '';
+            document.getElementById(inputId).value = city ? `${area}, ${city}` : area;
+        } catch (e) {}
+    }
+
+    async function setPresetRoute(homeStr, destStr) {
+        document.getElementById('homeInput').value = homeStr;
+        document.getElementById('destInput').value = destStr;
+        await mapRouteFromInputs();
+    }
+
+    async function mapRouteFromInputs() {
+        const hQuery = document.getElementById('homeInput').value.trim();
+        const dQuery = document.getElementById('destInput').value.trim();
+        if (!hQuery) return;
+
+        document.getElementById('aiBadge').innerText = '● Mapping Route...';
+        const [hLoc, dLoc] = await Promise.all([
+            geocodePlace(hQuery),
+            dQuery ? geocodePlace(dQuery) : Promise.resolve(null)
+        ]);
+
+        if (hLoc) {
+            state.homeLat = hLoc.lat;
+            state.homeLng = hLoc.lng;
+            homeMarker.setLatLng([hLoc.lat, hLoc.lng]);
+            await loadCoordinates(hLoc.lat, hLoc.lng, hLoc.label, null);
+        }
+        if (dLoc) {
+            state.workLat = dLoc.lat;
+            state.workLng = dLoc.lng;
+            workMarker.setLatLng([dLoc.lat, dLoc.lng]);
+        }
+        await drawRealRoadRoute();
+    }
+
+    async function drawRealRoadRoute() {
+        let km = Math.max(1.0, map.distance([state.homeLat, state.homeLng], [state.workLat, state.workLng]) / 1000 * 1.25);
+        let mins = Math.round((km / 24) * 60);
+        let coords = [[state.homeLat, state.homeLng], [state.workLat, state.workLng]];
+
+        try {
+            const url = `https://router.project-osrm.org/route/v1/driving/${state.homeLng},${state.homeLat};${state.workLng},${state.workLat}?overview=full&geometries=geojson`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.routes && data.routes.length > 0) {
+                km = data.routes[0].distance / 1000;
+                mins = Math.max(2, Math.round(data.routes[0].duration / 60));
+                coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+            }
+        } catch (e) {}
+
+        if (routeLine) map.removeLayer(routeLine);
+        routeLine = L.polyline(coords, { color: '#27473E', weight: 4.5, opacity: 0.88 }).addTo(map);
+        map.fitBounds(L.latLngBounds([[state.homeLat, state.homeLng], [state.workLat, state.workLng]]), { padding: [45, 45] });
+
+        const doseHigh = (state.pm25 * 1.45 * 0.015 * mins * 2).toFixed(1);
+        const doseGreen = (state.pm25 * 0.82 * 0.015 * mins * 2 * 0.15).toFixed(1);
+
+        document.getElementById('corridorDist').innerText = `${km.toFixed(1)} km (~${mins} mins)`;
+        document.getElementById('highwayDose').innerText = `${doseHigh} µg / day`;
+        document.getElementById('highwayPlain').innerText = `${(doseHigh / 35).toFixed(1)}× safe travel dust limit`;
+        document.getElementById('greenDose').innerText = `${doseGreen} µg / day`;
+        document.getElementById('greenPlain').innerText = `Safe — blocks ${Math.round(((doseHigh - doseGreen) / Math.max(1, doseHigh)) * 100)}% of road dust`;
+    }
+
+    async function findNearbyGreenOasis(lat, lng) {
+        oasisLayer.clearLayers();
+        const tag = document.getElementById('oasisCountTag');
+        const list = document.getElementById('greenOasisList');
+        tag.innerText = 'Scanning nearby parks & lakes...';
+
+        let spots = [];
+        try {
+            const query = `[out:json][timeout:8];(node["leisure"="park"](around:1000,${lat},${lng});way["leisure"="park"](around:1000,${lat},${lng});way["natural"="water"](around:1000,${lat},${lng}););out center 8;`;
+            const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query });
+            const data = await res.json();
+            spots = (data.elements || [])
+                .filter(el => el.tags && el.tags.name)
+                .map(s => {
+                    const pLat = s.lat || s.center.lat;
+                    const pLng = s.lon || s.center.lon;
+                    return { name: s.tags.name, pLat, pLng, distM: Math.round(map.distance([lat, lng], [pLat, pLng])) };
+                })
+                .sort((a, b) => a.distM - b.distM)
+                .slice(0, 3);
+        } catch (e) {}
+
+        // Reliable Nominatim fallback if Overpass is busy
+        if (spots.length === 0) {
+            try {
+                const cityPart = state.name.split(',').pop().trim();
+                const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&accept-language=en&limit=3&q=${encodeURIComponent('park near ' + state.name)}`);
+                const nomData = await nomRes.json();
+                spots = (nomData || []).map(item => {
+                    const pLat = parseFloat(item.lat);
+                    const pLng = parseFloat(item.lon);
+                    return {
+                        name: item.display_name.split(',')[0],
+                        pLat, pLng,
+                        distM: Math.round(map.distance([lat, lng], [pLat, pLng]))
+                    };
+                }).sort((a, b) => a.distM - b.distM).slice(0, 3);
+            } catch (e) {}
+        }
+
+        if (spots.length === 0) {
+            tag.innerText = 'Tree-Canopy Side Lanes Active';
+            list.innerHTML = `<div class="col-span-3 bg-[#ECF0EE] rounded-xl p-2.5 text-[#495A54]">
+                Walk along inner residential tree-lined streets—PM2.5 is ~25% lower than main arterial roads.
+            </div>`;
+            return;
+        }
+
+        tag.innerText = `${spots.length} Clean-Air Green Pockets Found`;
+        list.innerHTML = spots.map(spot => {
+            const walkMins = Math.max(2, Math.round(spot.distM / 80));
+            const cleanerPm = (state.pm25 * 0.72).toFixed(1);
+
+            L.circleMarker([spot.pLat, spot.pLng], {
+                radius: 9, fillColor: '#15803D', color: '#ECF0EE', weight: 2.5, fillOpacity: 0.92
+            }).addTo(oasisLayer).bindPopup(`<strong>🌿 ${spot.name}</strong><br>${walkMins} min walk (${spot.distM}m)<br>Est. PM2.5: <b>${cleanerPm} µg/m³</b>`);
+
+            return `<div class="bg-[#ECF0EE] rounded-xl p-2.5 border border-[#B0C4BA]">
+                <strong class="text-[#1B352E] block truncate">🌿 ${spot.name}</strong>
+                <span class="mono text-[11px] text-[#27473E] font-bold">${walkMins} min walk (${spot.distM}m) • ~${cleanerPm} µg/m³</span>
+                <span class="text-[10px] text-[#495A54] block">~28% lower dust than traffic road</span>
+            </div>`;
+        }).join('');
+    }
+
+    function reportLocalSmokeHotspot(lat, lng) {
+        if (!confirm('Flag temporary smoke or construction dust at this spot? (You can undo anytime)')) return;
+        lastSmokeMarker = L.circleMarker([lat, lng], {
+            radius: 10, fillColor: '#8C3B2B', color: '#ECF0EE', weight: 3, fillOpacity: 0.95
+        }).addTo(smokeLayer).bindPopup(`<strong>⚠️ Temporary Dust / Smoke Caution</strong><br>Auto-clears in 2 hrs`).openPopup();
+
+        const panel = document.getElementById('smokeAlertPanel');
+        panel.classList.remove('hidden');
+        document.getElementById('smokeReportText').innerText =
+            `STREET AIR HEADS-UP (${state.name}): Temporary dust or smoke spotted near GPS ${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E (Area AQI: ${state.aqi}, PM2.5: ${state.pm25} µg/m³). Commuters & walkers nearby can use parallel inner lanes for the next 2 hours.`;
+    }
+
+    function undoLastSmokePin() {
+        if (lastSmokeMarker) {
+            smokeLayer.removeLayer(lastSmokeMarker);
+            lastSmokeMarker = null;
+        }
+        document.getElementById('smokeAlertPanel').classList.add('hidden');
+        setPinMode('HOME');
+    }
+
+    function copySmokeReport() {
+        navigator.clipboard.writeText(document.getElementById('smokeReportText').innerText);
+        const btn = document.getElementById('copySmokeBtn');
+        btn.innerText = 'Copied!';
+        setTimeout(() => btn.innerText = 'Copy Street Alert', 1600);
+    }
+
+    async function loadCoordinates(lat, lng, knownName, inputToUpdate) {
+        document.getElementById('aiBadge').innerText = '● Scanning Air...';
+        let placeName = knownName;
+        if (!placeName) {
+            try {
+                const rev = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&accept-language=en&lat=${lat}&lon=${lng}`);
+                const revData = await rev.json();
+                const addr = revData.address || {};
+                const area = addr.suburb || addr.neighbourhood || addr.road || addr.town || addr.city_district || 'Selected Street';
+                const city = addr.city || addr.state_district || addr.state || '';
+                placeName = city ? `${area}, ${city}` : area;
+                if (inputToUpdate) document.getElementById(inputToUpdate).value = placeName;
+            } catch (e) {
+                placeName = `Location (${lat.toFixed(3)}, ${lng.toFixed(3)})`;
+            }
+        }
+
+        try {
+            const [aqRes, wxRes] = await Promise.all([
+                fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&current=us_aqi,pm2_5,pm10,nitrogen_dioxide,ozone,uv_index&hourly=pm2_5&forecast_days=1`),
+                fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=wind_speed_10m`)
+            ]);
+            const aq = await aqRes.json();
+            const wx = await wxRes.json();
+            const cur = aq.current || {};
+
+            state.name = placeName;
+            state.aqi = Math.round(cur.us_aqi || 115);
+            state.pm25 = Number((cur.pm2_5 || 36).toFixed(1));
+            state.pm10 = Number((cur.pm10 || 44).toFixed(1));
+            state.no2 = Number((cur.nitrogen_dioxide || 6).toFixed(1));
+            state.wind = Number((wx.current?.wind_speed_10m || 12).toFixed(1));
+
+            if (aq.hourly && aq.hourly.time && aq.hourly.pm2_5) {
+                state.hourlyLabels = aq.hourly.time.filter((_, i) => i % 3 === 0).map(t => t.slice(11, 16));
+                state.hourlyPm25 = aq.hourly.pm2_5.filter((_, i) => i % 3 === 0).map(v => Number((v || state.pm25).toFixed(1)));
+            }
+
+            document.getElementById('pinnedPlaceName').innerText = state.name;
+            document.getElementById('pinnedCoords').innerText = `${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E`;
+            document.getElementById('chartLocationTag').innerText = state.name;
+            document.getElementById('chatLocLabel').innerText = state.name;
+
+            document.getElementById('liveAqi').innerText = state.aqi;
+            document.getElementById('cigEqText').innerText = `${Math.max(0.3, state.pm25 / 22).toFixed(1)} cig/d`;
+            document.getElementById('valPm25').innerText = `${state.pm25} µg/m³`;
+            document.getElementById('valPm10').innerText = `${state.pm10} µg/m³`;
+            document.getElementById('valNo2').innerText = `${state.no2} µg/m³`;
+            document.getElementById('valO3').innerText = `${Number((cur.ozone || 42).toFixed(1))} µg/m³`;
+            document.getElementById('valWind').innerText = `${state.wind} km/h`;
+            document.getElementById('valUv').innerText = Number((cur.uv_index || 5).toFixed(1));
+
+            document.getElementById('verdictChip').innerText = state.aqi > 150 ? 'Unhealthy' : (state.aqi > 100 ? 'Moderate' : 'Clean Air');
+            document.getElementById('windowNowAdvice').innerText =
+                (state.pm25 < 35 && state.wind >= 10)
+                    ? '✅ SAFE TO OPEN WINDOWS — Good breeze dispersing smog'
+                    : '⚠️ KEEP ROAD WINDOWS CLOSED — High fine dust outside';
+
+            document.getElementById('aiBadge').innerText = '● Live Sync';
+            findNearbyGreenOasis(lat, lng);
+            renderSmogChart();
+            buildRoomPlan();
+            updateColonyImpact();
+        } catch (e) {
+            document.getElementById('aiBadge').innerText = '● Offline';
+        }
+    }
+
+    function renderSmogChart() {
+        const ctx = document.getElementById('smogChart').getContext('2d');
+        if (smogChart) smogChart.destroy();
+        smogChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: state.hourlyLabels,
+                datasets: [{
+                    label: 'PM2.5 (µg/m³)',
+                    data: state.hourlyPm25,
+                    borderColor: '#27473E',
+                    backgroundColor: 'rgba(39, 71, 62, 0.14)',
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.35,
+                    pointBackgroundColor: state.hourlyPm25.map(v => v > 45 ? '#8C3B2B' : '#27473E'),
+                    pointRadius: 5
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+
+        const grid = document.getElementById('windowScheduleGrid');
+        grid.innerHTML = state.hourlyLabels.map((hr, idx) => {
+            const val = state.hourlyPm25[idx];
+            const safe = val <= 40;
+            return `<div class="inner-tile rounded-xl p-2.5 ${safe ? 'bg-[#DAE6E0] border-[#B0C4BA]' : ''}">
+                <span class="mono font-bold text-[#16221E] block">${hr} • ${val} µg</span>
+                <span class="text-[11px] font-bold ${safe ? 'text-[#27473E]' : 'text-[#8C3B2B]'}">${safe ? 'Open Windows' : 'Seal Windows'}</span>
+            </div>`;
+        }).join('');
+    }
+
+    function buildRoomPlan() {
+        const room = document.getElementById('roomType').value;
+        const routine = document.getElementById('routineType').value;
+
+        const roomAction = {
+            BEDROOM: {
+                title: '1. Pre-Sleep Window Flush',
+                desc: 'Air out the bedroom between 12 PM – 3 PM, then keep windows closed after 6 PM so overnight ground smog stays outside.'
+            },
+            HALL: {
+                title: '1. Road-Side Barrier Habit',
+                desc: 'Keep road-facing windows latched during 6–9 AM & 6–9 PM rush hours; place a rolled damp cloth along bottom door gaps.'
+            },
+            HOSTEL: {
+                title: '1. Cross-Breeze Fan Positioning',
+                desc: 'Point your table/ceiling fan away from the open window during 11 AM – 4 PM to push stale room air out quickly.'
+            }
+        };
+
+        const routineAction = {
+            COMMUTER: {
+                title: '2. Post-Commute Wash & Change',
+                desc: 'Wash face, rinse nostrils with plain water, and change outer commute clothes immediately so trapped road dust stays off your bed.'
+            },
+            WFH: {
+                title: '2. Midday Desk Ventilation Break',
+                desc: 'Open windows for 20 minutes around 1:30 PM when sunlight disperses smog, clearing indoor CO₂ buildup for better focus.'
+            },
+            FAMILY: {
+                title: '2. Safe Play & Kitchen Steam Habit',
+                desc: 'Schedule kids’ outdoor play strictly between 11 AM – 4 PM and cover boiling pots with lids to prevent indoor smoke spikes.'
+            }
+        };
+
+        const universalAction = {
+            title: '3. Wet-Mopping Over Dry Brooming',
+            desc: 'Dry sweeping kicks settled PM10 dust back into lung height for 2 hours—always wipe floors with a damp mop instead.'
+        };
+
+        const cards = [roomAction[room], routineAction[routine], universalAction];
+        document.getElementById('roomEfficiencyText').innerText =
+            `Zero-Cost Indoor Dust Reduction: ~42% in ${state.name} (No gadgets needed)`;
+        document.getElementById('roomPlanCards').innerHTML = cards.map(c =>
+            `<div class="inner-tile rounded-2xl p-4 space-y-1.5">
+                <strong class="text-[#16221E] block">${c.title}</strong>
+                <p class="text-[#495A54] leading-relaxed">${c.desc}</p>
+            </div>`
+        ).join('');
+    }
+
+    function askAiForRoom() {
+        const room = document.getElementById('roomType').selectedOptions[0].text;
+        const routine = document.getElementById('routineType').selectedOptions[0].text;
+        goToPage(5);
+        askQuick(`Give me a zero-cost daily clean-air routine for my ${room} in ${state.name} (AQI ${state.aqi}) as a ${routine}.`);
+    }
+
+    function updateColonyImpact() {
+        const km = parseInt(document.getElementById('dailyKm').value, 10);
+        document.getElementById('kmLabel').innerText = `${km} km / day`;
+
+        const hasTransit = document.getElementById('chkTransit').checked;
+        const hasPower = document.getElementById('chkPower').checked;
+        const hasNoBurn = document.getElementById('chkNoBurn').checked;
+
+        const transitKg = hasTransit ? Math.round(km * 3 * 52 * 0.14) : 0;
+        const powerKg = hasPower ? 280 : 0;
+        const burnKg = hasNoBurn ? 145 : 0;
+
+        const totalKg = transitKg + powerKg + burnKg;
+        const pmGrams = Math.round((hasTransit ? km * 3.2 : 0) + (hasPower ? 180 : 0) + (hasNoBurn ? 420 : 0));
+
+        document.getElementById('colonyCo2').innerText = `${totalKg} kg / yr`;
+        document.getElementById('colonyPm').innerText = `${pmGrams} g / yr`;
+
+        const ctx = document.getElementById('impactBarChart').getContext('2d');
+        if (impactBarChart) impactBarChart.destroy();
+        impactBarChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Metro / Bus / Carpool', '24–26°C AC & Power Save', 'Zero Leaf / Waste Burning'],
+                datasets: [{
+                    label: 'kg CO₂ Cut / Year',
+                    data: [transitKg, powerKg, burnKg],
+                    backgroundColor: ['#27473E', '#3D6B5E', '#6B8E82'],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+
+        const activeList = [];
+        if (hasTransit) activeList.push(`Metro/carpool 3 days/week (${km} km/day)`);
+        if (hasPower) activeList.push('24–26°C efficient cooling');
+        if (hasNoBurn) activeList.push('zero dry-leaf/waste burning');
+
+        document.getElementById('civicNoticeText').innerText =
+`CLEAN-AIR ACTION SUMMARY — ${state.name.toUpperCase()}
+Live Air Reading: US AQI ${state.aqi} | PM2.5: ${state.pm25} µg/m³ | NO₂: ${state.no2} µg/m³
+• Active Habits: ${activeList.length ? activeList.join(', ') : 'Select at least one habit above'}.
+• Annual Pollution Prevented: ${totalKg} kg CO₂ smoke and ${pmGrams} g lung dust kept out of local air.
+• Best Outdoor Hours Today: 11:00 AM – 4:00 PM (avoid 6–9 AM & 6–9 PM traffic smog peaks).`;
+    }
+
+    function copyCivicNotice() {
+        navigator.clipboard.writeText(document.getElementById('civicNoticeText').innerText);
+        const btn = document.getElementById('copyBtn');
+        btn.innerText = 'Copied!';
+        setTimeout(() => btn.innerText = 'Copy Note', 1500);
+    }
+
+    function askQuick(q) {
+        document.getElementById('chatInput').value = q;
+        sendChat();
+    }
+
+    async function sendChat() {
+        const input = document.getElementById('chatInput');
+        const q = input.value.trim();
+        if (!q) return;
+        input.value = '';
+
+        const box = document.getElementById('chatBox');
+        box.innerHTML += `<div class="bg-[#27473E] text-[#ECF0EE] rounded-xl p-3 ml-12">${q}</div>`;
+        box.scrollTop = box.scrollHeight;
+
+        const typingId = 'typing-' + Date.now();
+        box.innerHTML += `<div id="${typingId}" class="bg-[#DAE6E0] rounded-xl p-3 mr-10 text-[#495A54]">Analyzing ${state.name} air telemetry...</div>`;
+
+        try {
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    question: q,
+                    location: state.name,
+                    aqi: state.aqi,
+                    pm25: state.pm25,
+                    pm10: state.pm10,
+                    no2: state.no2
+                })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.reply) {
+                    document.getElementById(typingId).innerHTML = `<strong>VayuTwin AI:</strong> ${data.reply}`;
+                    box.scrollTop = box.scrollHeight;
+                    return;
+                }
+            }
+            throw new Error('Fallback');
+        } catch (e) {
+            const ql = q.toLowerCase();
+            let fallback = `In ${state.name} (Live AQI ${state.aqi}, PM2.5 ${state.pm25} µg/m³), `;
+            if (ql.includes('window') || ql.includes('circulat') || ql.includes('ventilat')) {
+                fallback += `wind speed is currently ${state.wind} km/h. Open opposite windows for 20 minutes between 11:30 AM and 3:30 PM when sunlight disperses smog, and keep road-facing windows latched during 6–9 PM traffic peaks.`;
+            } else if (ql.includes('bike') || ql.includes('wheeler') || ql.includes('commut') || ql.includes('mask')) {
+                fallback += `wearing a snug N95 mask on 2-wheelers blocks ~85% of fine traffic dust (PM2.5) and cuts NO₂ (${state.no2} µg/m³) throat irritation along main roads.`;
+            } else if (ql.includes('kid') || ql.includes('child') || ql.includes('play')) {
+                fallback += `keep outdoor play strictly within the 11:00 AM – 4:00 PM dispersion window and wet-mop indoor floors daily instead of dry sweeping.`;
+            } else {
+                fallback += `flush room air midday (11 AM – 4 PM), use lids while cooking to cut indoor smoke, and avoid outdoor exertion during morning/evening traffic inversions.`;
+            }
+            document.getElementById(typingId).innerHTML = `<strong>VayuTwin AI:</strong> ${fallback}`;
+        }
+        box.scrollTop = box.scrollHeight;
+    }
+
+    window.onload = async () => {
+        initMap();
+        await mapRouteFromInputs();
+    };
+</script>
+</body>
+</html>
