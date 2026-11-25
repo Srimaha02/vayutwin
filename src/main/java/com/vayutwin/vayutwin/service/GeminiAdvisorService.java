@@ -1,7 +1,5 @@
 package com.vayutwin.vayutwin.service;
 
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 import com.vayutwin.vayutwin.model.SimulationRequest;
 import com.vayutwin.vayutwin.model.SimulationResponse;
 import org.slf4j.Logger;
@@ -10,6 +8,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -37,6 +37,9 @@ public class GeminiAdvisorService {
 
     @Value("${gemini.model:gemini-2.5-flash}")
     private String model;
+
+    @Value("${gemini.api.base-url:https://generativelanguage.googleapis.com/v1beta/models}")
+    private String geminiBaseUrl;
 
     @Value("${vayutwin.cache.ttl-minutes:10}")
     private long cacheTtlMinutes;
@@ -101,16 +104,15 @@ public class GeminiAdvisorService {
                     + "Answer the user's question directly, practically, and specifically in 3-4 concise sentences grounded in these live numbers: "
                     + question;
 
-            String url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey.trim();
+            String url = geminiBaseUrl + "/" + model + ":generateContent?key=" + apiKey.trim();
             Map<String, Object> body = Map.of(
                     "contents", List.of(Map.of("parts", List.of(Map.of("text", prompt))))
             );
 
-            @SuppressWarnings("unchecked")
-            Map<String, Object> root = restClient.post().uri(url)
-                    .contentType(MediaType.APPLICATION_JSON).body(body).retrieve().body(Map.class);
+            String rawResponse = restClient.post().uri(url)
+                    .contentType(MediaType.APPLICATION_JSON).body(body).retrieve().body(String.class);
 
-            String text = extractCandidateText(root);
+            String text = extractCandidateText(rawResponse);
             return (text != null && !text.isBlank()) ? text.trim() : null;
         } catch (Exception ex) {
             log.warn("Gemini API call failed for location='{}', using deterministic fallback: {}", location, ex.getMessage());
@@ -208,7 +210,6 @@ public class GeminiAdvisorService {
         return co2Saved;
     }
 
-    @SuppressWarnings("unchecked")
     private AiGuidance fetchGeminiGuidance(
             AirQualityService.AqiSnapshot snap, String zone, String house, String commute,
             int reductionPct, double co2Saved, int flats, double communityCo2
@@ -222,16 +223,16 @@ public class GeminiAdvisorService {
                         + ". Reply ONLY in JSON with keys: directImpactSummary (string), dailyRoutineTips (3 strings), "
                         + "indoorAirHacks (3 strings), sustainableSwaps (2 strings), whatsappCommunityNotice (string).";
 
-                String url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey.trim();
+                String url = geminiBaseUrl + "/" + model + ":generateContent?key=" + apiKey.trim();
                 Map<String, Object> body = Map.of(
                         "contents", List.of(Map.of("parts", List.of(Map.of("text", prompt)))),
                         "generationConfig", Map.of("responseMimeType", "application/json")
                 );
 
-                Map<String, Object> root = restClient.post().uri(url)
-                        .contentType(MediaType.APPLICATION_JSON).body(body).retrieve().body(Map.class);
+                String rawResponse = restClient.post().uri(url)
+                        .contentType(MediaType.APPLICATION_JSON).body(body).retrieve().body(String.class);
 
-                String jsonText = extractCandidateText(root);
+                String jsonText = extractCandidateText(rawResponse);
                 if (jsonText != null && !jsonText.isBlank()) {
                     JsonNode node = objectMapper.readTree(jsonText);
                     String summary = node.path("directImpactSummary").asText("");
@@ -273,16 +274,25 @@ public class GeminiAdvisorService {
         return new AiGuidance(summary, routine, hacks, swaps, notice, false);
     }
 
-    @SuppressWarnings("unchecked")
-    private String extractCandidateText(Map<String, Object> root) {
-        if (root == null || !(root.get("candidates") instanceof List<?> candidates) || candidates.isEmpty()) {
+    private String extractCandidateText(String rawJson) {
+        if (rawJson == null || rawJson.isBlank()) {
             return null;
         }
-        Map<String, Object> first = (Map<String, Object>) candidates.get(0);
-        if (!(first.get("content") instanceof Map<?, ?> content)) return null;
-        if (!(content.get("parts") instanceof List<?> parts) || parts.isEmpty()) return null;
-        Object text = ((Map<String, Object>) parts.get(0)).get("text");
-        return text != null ? text.toString() : null;
+        try {
+            JsonNode candidates = objectMapper.readTree(rawJson).path("candidates");
+            if (!candidates.isArray() || candidates.isEmpty()) {
+                return null;
+            }
+            JsonNode parts = candidates.get(0).path("content").path("parts");
+            if (!parts.isArray() || parts.isEmpty()) {
+                return null;
+            }
+            String text = parts.get(0).path("text").asText("");
+            return text.isBlank() ? null : text;
+        } catch (Exception ex) {
+            log.warn("Failed to parse Gemini response envelope: {}", ex.getMessage());
+            return null;
+        }
     }
 
     private List<String> readJsonArray(JsonNode arrayNode) {

@@ -2,13 +2,14 @@ package com.vayutwin.vayutwin.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Fetches live geocoded air quality telemetry (US AQI and PM2.5) from Open-Meteo
@@ -33,7 +34,19 @@ public class AirQualityService {
     private static final int AQI_MODERATE_MAX = 100;
     private static final int AQI_UNHEALTHY_SENSITIVE_MAX = 200;
 
-    private final RestClient restClient = RestClient.create();
+    private final String geoBaseUrl;
+    private final String aqiBaseUrl;
+    private final RestClient restClient;
+    private final ObjectMapper objectMapper;
+
+    public AirQualityService(
+            @Value("${openmeteo.geo.base-url:https://geocoding-api.open-meteo.com/v1/search}") String geoBaseUrl,
+            @Value("${openmeteo.aqi.base-url:https://air-quality-api.open-meteo.com/v1/air-quality}") String aqiBaseUrl) {
+        this.geoBaseUrl = geoBaseUrl;
+        this.aqiBaseUrl = aqiBaseUrl;
+        this.restClient = RestClient.create();
+        this.objectMapper = new ObjectMapper();
+    }
 
     /**
      * Immutable snapshot of adjusted ward air quality and safe dispersion window.
@@ -47,7 +60,6 @@ public class AirQualityService {
      * @param zoneType  micro-zone classification (MAIN_ROAD, INDUSTRIAL, RESIDENTIAL)
      * @return adjusted {@link AqiSnapshot} with resilient offline fallback
      */
-    @SuppressWarnings("unchecked")
     public AqiSnapshot fetchLiveAqi(String cityInput, String zoneType) {
         String cleanCity = (cityInput == null || cityInput.isBlank()) ? DEFAULT_CITY : cityInput.trim();
         double lat = DEFAULT_LATITUDE;
@@ -58,28 +70,31 @@ public class AirQualityService {
 
         try {
             String encoded = URLEncoder.encode(cleanCity, StandardCharsets.UTF_8);
-            String geoUrl = "https://geocoding-api.open-meteo.com/v1/search?name=" + encoded + "&count=1&language=en&format=json";
-            Map<String, Object> geoRoot = restClient.get().uri(geoUrl).retrieve().body(Map.class);
+            String geoUrl = geoBaseUrl + "?name=" + encoded + "&count=1&language=en&format=json";
+            String geoRaw = restClient.get().uri(geoUrl).retrieve().body(String.class);
 
-            if (geoRoot != null && geoRoot.get("results") instanceof List<?> results && !results.isEmpty()) {
-                Map<String, Object> first = (Map<String, Object>) results.get(0);
-                lat = ((Number) first.getOrDefault("latitude", lat)).doubleValue();
-                lon = ((Number) first.getOrDefault("longitude", lon)).doubleValue();
-                String name = String.valueOf(first.getOrDefault("name", cleanCity));
-                String country = String.valueOf(first.getOrDefault("country", ""));
-                resolvedName = country.isBlank() ? name : name + ", " + country;
+            if (geoRaw != null && !geoRaw.isBlank()) {
+                JsonNode results = objectMapper.readTree(geoRaw).path("results");
+                if (results.isArray() && !results.isEmpty()) {
+                    JsonNode first = results.get(0);
+                    lat = first.path("latitude").asDouble(lat);
+                    lon = first.path("longitude").asDouble(lon);
+                    String name = first.path("name").asText(cleanCity);
+                    String country = first.path("country").asText("");
+                    resolvedName = country.isBlank() ? name : name + ", " + country;
+                }
             }
 
-            String aqiUrl = String.format(
-                    "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=%s&longitude=%s&current=us_aqi,pm2_5",
-                    lat, lon
-            );
-            Map<String, Object> aqiRoot = restClient.get().uri(aqiUrl).retrieve().body(Map.class);
-            if (aqiRoot != null && aqiRoot.get("current") instanceof Map<?, ?> current) {
-                Object aqiVal = current.get("us_aqi");
-                Object pmVal = current.get("pm2_5");
-                if (aqiVal instanceof Number n) baseAqi = n.intValue();
-                if (pmVal instanceof Number n) basePm25 = n.doubleValue();
+            String aqiUrl = String.format("%s?latitude=%s&longitude=%s&current=us_aqi,pm2_5", aqiBaseUrl, lat, lon);
+            String aqiRaw = restClient.get().uri(aqiUrl).retrieve().body(String.class);
+            if (aqiRaw != null && !aqiRaw.isBlank()) {
+                JsonNode current = objectMapper.readTree(aqiRaw).path("current");
+                if (current.path("us_aqi").isNumber()) {
+                    baseAqi = current.get("us_aqi").asInt(FALLBACK_AQI);
+                }
+                if (current.path("pm2_5").isNumber()) {
+                    basePm25 = current.get("pm2_5").asDouble(FALLBACK_PM25);
+                }
             }
         } catch (Exception ex) {
             log.debug("Using fallback telemetry for city='{}': {}", cleanCity, ex.getMessage());
@@ -89,10 +104,13 @@ public class AirQualityService {
         int adjustedAqi = (int) Math.round(baseAqi * multiplier);
         double adjustedPm25 = Math.round(basePm25 * multiplier * 10.0) / 10.0;
 
-        String category = classifyAqiCategory(adjustedAqi);
-        String safeWindow = resolveSafeWindow(adjustedAqi);
-
-        return new AqiSnapshot(resolvedName, adjustedAqi, adjustedPm25, category, safeWindow);
+        return new AqiSnapshot(
+                resolvedName,
+                adjustedAqi,
+                adjustedPm25,
+                classifyAqiCategory(adjustedAqi),
+                resolveSafeWindow(adjustedAqi)
+        );
     }
 
     private double resolveZoneMultiplier(String zoneType) {

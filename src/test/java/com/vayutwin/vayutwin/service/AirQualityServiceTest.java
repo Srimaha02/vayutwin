@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class AirQualityServiceTest {
 
-    private final AirQualityService service = new AirQualityService();
+    private final AirQualityService service = new AirQualityService("https://geocoding-api.open-meteo.com/v1/search", "https://air-quality-api.open-meteo.com/v1/air-quality");
 
     @Test
     @DisplayName("Blank city defaults to Chennai and returns valid AQI snapshot")
