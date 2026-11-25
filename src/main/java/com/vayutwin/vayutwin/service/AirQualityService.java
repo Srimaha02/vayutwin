@@ -1,5 +1,7 @@
 package com.vayutwin.vayutwin.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
@@ -8,21 +10,51 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Fetches live geocoded air quality telemetry (US AQI and PM2.5) from Open-Meteo
+ * and applies hyperlocal micro-zone dispersion multipliers.
+ */
 @Service
 public class AirQualityService {
 
+    private static final Logger log = LoggerFactory.getLogger(AirQualityService.class);
+
+    private static final String DEFAULT_CITY = "Chennai";
+    private static final double DEFAULT_LATITUDE = 13.0827;
+    private static final double DEFAULT_LONGITUDE = 80.2707;
+    private static final int FALLBACK_AQI = 122;
+    private static final double FALLBACK_PM25 = 44.0;
+
+    private static final double MULTIPLIER_MAIN_ROAD = 1.22;
+    private static final double MULTIPLIER_INDUSTRIAL = 1.35;
+    private static final double MULTIPLIER_RESIDENTIAL = 1.0;
+
+    private static final int AQI_GOOD_MAX = 50;
+    private static final int AQI_MODERATE_MAX = 100;
+    private static final int AQI_UNHEALTHY_SENSITIVE_MAX = 200;
+
     private final RestClient restClient = RestClient.create();
 
+    /**
+     * Immutable snapshot of adjusted ward air quality and safe dispersion window.
+     */
     public record AqiSnapshot(String resolvedCity, int aqi, double pm25, String category, String safeWindow) {}
 
+    /**
+     * Retrieves and adjusts live AQI metrics for a given city and urban zone type.
+     *
+     * @param cityInput target city name
+     * @param zoneType  micro-zone classification (MAIN_ROAD, INDUSTRIAL, RESIDENTIAL)
+     * @return adjusted {@link AqiSnapshot} with resilient offline fallback
+     */
     @SuppressWarnings("unchecked")
     public AqiSnapshot fetchLiveAqi(String cityInput, String zoneType) {
-        String cleanCity = (cityInput == null || cityInput.isBlank()) ? "Chennai" : cityInput.trim();
-        double lat = 13.0827;
-        double lon = 80.2707;
+        String cleanCity = (cityInput == null || cityInput.isBlank()) ? DEFAULT_CITY : cityInput.trim();
+        double lat = DEFAULT_LATITUDE;
+        double lon = DEFAULT_LONGITUDE;
         String resolvedName = cleanCity;
-        int baseAqi = 122;
-        double basePm25 = 44.0;
+        int baseAqi = FALLBACK_AQI;
+        double basePm25 = FALLBACK_PM25;
 
         try {
             String encoded = URLEncoder.encode(cleanCity, StandardCharsets.UTF_8);
@@ -49,35 +81,39 @@ public class AirQualityService {
                 if (aqiVal instanceof Number n) baseAqi = n.intValue();
                 if (pmVal instanceof Number n) basePm25 = n.doubleValue();
             }
-        } catch (Exception ignored) {
-            // Reliable fallback if offline or API rate-limited
+        } catch (Exception ex) {
+            log.debug("Using fallback telemetry for city='{}': {}", cleanCity, ex.getMessage());
         }
 
-        double multiplier = switch (zoneType != null ? zoneType : "RESIDENTIAL") {
-            case "MAIN_ROAD" -> 1.22;
-            case "INDUSTRIAL" -> 1.35;
-            default -> 1.0;
-        };
-
+        double multiplier = resolveZoneMultiplier(zoneType);
         int adjustedAqi = (int) Math.round(baseAqi * multiplier);
         double adjustedPm25 = Math.round(basePm25 * multiplier * 10.0) / 10.0;
 
-        String category;
-        String safeWindow;
-        if (adjustedAqi <= 50) {
-            category = "Good";
-            safeWindow = "6:00 AM – 9:00 PM (All Day Safe)";
-        } else if (adjustedAqi <= 100) {
-            category = "Moderate";
-            safeWindow = "9:30 AM – 5:30 PM (Avoid Early Mist)";
-        } else if (adjustedAqi <= 200) {
-            category = "Unhealthy for Sensitive Groups";
-            safeWindow = "11:00 AM – 4:00 PM (Thermal Inversion Clears)";
-        } else {
-            category = "Severe Winter Smog";
-            safeWindow = "12:30 PM – 3:30 PM Only (Wear N95 Outdoors)";
-        }
+        String category = classifyAqiCategory(adjustedAqi);
+        String safeWindow = resolveSafeWindow(adjustedAqi);
 
         return new AqiSnapshot(resolvedName, adjustedAqi, adjustedPm25, category, safeWindow);
+    }
+
+    private double resolveZoneMultiplier(String zoneType) {
+        return switch (zoneType != null ? zoneType : "RESIDENTIAL") {
+            case "MAIN_ROAD" -> MULTIPLIER_MAIN_ROAD;
+            case "INDUSTRIAL" -> MULTIPLIER_INDUSTRIAL;
+            default -> MULTIPLIER_RESIDENTIAL;
+        };
+    }
+
+    private String classifyAqiCategory(int aqi) {
+        if (aqi <= AQI_GOOD_MAX) return "Good";
+        if (aqi <= AQI_MODERATE_MAX) return "Moderate";
+        if (aqi <= AQI_UNHEALTHY_SENSITIVE_MAX) return "Unhealthy for Sensitive Groups";
+        return "Severe Winter Smog";
+    }
+
+    private String resolveSafeWindow(int aqi) {
+        if (aqi <= AQI_GOOD_MAX) return "6:00 AM - 9:00 PM (All Day Safe)";
+        if (aqi <= AQI_MODERATE_MAX) return "9:30 AM - 5:30 PM (Avoid Early Mist)";
+        if (aqi <= AQI_UNHEALTHY_SENSITIVE_MAX) return "11:00 AM - 4:00 PM (Thermal Inversion Clears)";
+        return "12:30 PM - 3:30 PM Only (Wear N95 Outdoors)";
     }
 }
