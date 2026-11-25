@@ -1,5 +1,8 @@
 package com.vayutwin.vayutwin.model;
 
+/**
+ * Request payload capturing household profile, commute mode, and air-quality interventions.
+ */
 public class SimulationRequest {
     private String city;
     private String zoneType;

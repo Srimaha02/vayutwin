@@ -2,6 +2,9 @@ package com.vayutwin.vayutwin.model;
 
 import java.util.List;
 
+/**
+ * Immutable response summarizing live AQI telemetry, exposure reduction, and AI guidance.
+ */
 public class SimulationResponse {
     private final String city;
     private final int liveAqi;
