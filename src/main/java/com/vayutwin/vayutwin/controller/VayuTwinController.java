@@ -94,6 +94,8 @@ public class VayuTwinController {
         response.setHeader("X-Content-Type-Options", "nosniff");
         response.setHeader("X-Frame-Options", "SAMEORIGIN");
         response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+        response.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+        response.setHeader("Cache-Control", "no-store");
     }
 
     private String sanitize(String input, int maxLen) {
