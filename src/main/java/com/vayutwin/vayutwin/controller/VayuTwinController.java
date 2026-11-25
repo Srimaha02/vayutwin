@@ -9,8 +9,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.util.Map;
 
+/**
+ * REST API controller powering VayuTwin hyperlocal air quality simulations,
+ * health observability, and context-grounded Gemini AI advisory responses.
+ */
 @RestController
 @RequestMapping("/api")
 public class VayuTwinController {
@@ -23,6 +28,15 @@ public class VayuTwinController {
 
     public VayuTwinController(GeminiAdvisorService advisorService) {
         this.advisorService = advisorService;
+    }
+
+    @GetMapping("/health")
+    public ResponseEntity<Map<String, Object>> health() {
+        return ResponseEntity.ok(Map.of(
+                "status", "UP",
+                "service", "VayuTwin Urban Air Quality Assistant",
+                "timestamp", Instant.now().toString()
+        ));
     }
 
     @PostMapping("/simulate")

@@ -1,26 +1,44 @@
-# VayuTwin — Hyperlocal Urban Air Quality Assistant
+# VayuTwin — Hyperlocal Urban Air Quality & Lung-Health Assistant
 
-VayuTwin is a hyperlocal air intelligence web application built with **Java 21**, **Spring Boot**, **Leaflet**, and the **Google Gemini API**. It translates raw AQI numbers into street-level commute routes, walkable clean-air green pockets, window-ventilation schedules, and personalized daily guidance.
+VayuTwin is a Spring Boot 3 / Java 21 web application powered by Google Gemini AI that combines hyperlocal air quality telemetry (AQI, PM2.5, PM10, NO₂), ward-level dispersion forecasting, and personalized exposure-reduction simulations.
 
 ## Key Features
+- **Live Micro-Zone Simulation (POST /api/simulate):** Models household PM2.5 exposure reduction, safe outdoor dispersion windows, monthly CO₂ savings, and community-wide impact across ward types (MAIN_ROAD, RESIDENTIAL, INDUSTRIAL) and vulnerable groups (KIDS, ELDERLY, ASTHMA).
+- **Context-Grounded Gemini AI Advisor (POST /api/chat):** Delivers concise, actionable lung-health and ventilation recommendations anchored to live local pollutant metrics, backed by a bounded 10-minute TTL response cache and deterministic offline fallbacks.
+- **Hardened Input Validation & Security:** Sanitizes control characters, enforces payload length limits, clamps numeric pollutant bounds, sets defensive HTTP security headers (X-Content-Type-Options, X-Frame-Options, Referrer-Policy), and prevents stack-trace exposure via centralized @RestControllerAdvice.
+- **Accessible Interactive UI:** Semantic ARIA landmarks, ria-live status regions, and responsive ward-level visual guidance.
 
-- **Home-to-Destination Route Mapper (OSRM + Leaflet):** Maps real road routes between any two locations and compares main highway PM2.5 inhalation dose against cleaner green side-lanes + N95 protection.
-- **Walkable Clean-Air Green Pocket Finder:** Scans nearby parks and water bodies (via Overpass & Nominatim APIs) with walking time and estimated PM2.5 reduction.
-- **Street Smoke / Dust Caution Radar:** Lets commuters flag temporary localized smoke or construction dust with an accidental-tap confirmation prompt, undo control, and 2-hour auto-expiry.
-- **24-Hour Window & Outdoor Dispersion Clock:** Combines hourly PM2.5 forecasts and wind speed (Open-Meteo) to show exact safe hours for cross-ventilation vs. sealing road-facing windows.
-- **Zero-Cost Indoor Air Routine & Personal Impact Simulator:** Generates gadget-free indoor dust reduction habits and calculates annual $\text{CO}_2$ and particulate reductions via interactive Chart.js visuals.
-- **Gemini AI Air Co-Pilot:** Context-aware advisor grounded in the selected street's live US AQI, PM2.5, PM10, and $\text{NO}_2$ telemetry.
+## Architecture Overview
+src/main/java/com/vayutwin/vayutwin/
+├── controller/
+│   ├── VayuTwinController.java       # REST endpoints (/api/health, /api/simulate, /api/chat)
+│   └── GlobalExceptionHandler.java   # Centralized JSON error handling
+├── model/
+│   ├── SimulationRequest.java        # Household, commute & intervention parameters
+│   └── SimulationResponse.java       # Exposure score, CO2 savings & AI guidance payload
+└── service/
+├── AirQualityService.java        # Live/baseline AQI & safe dispersion window engine
+└── GeminiAdvisorService.java     # Gemini API integration, TTL cache & fallbacks
+System.Text.UTF8Encoding = New-Object System.Text.UTF8Encoding False
+ = @"
+# VayuTwin — Hyperlocal Urban Air Quality & Lung-Health Assistant
 
-## Tech Stack
+VayuTwin is a Spring Boot 3 / Java 21 web application powered by Google Gemini AI that combines hyperlocal air quality telemetry (AQI, PM2.5, PM10, NO2), ward-level dispersion forecasting, and personalized exposure-reduction simulations.
 
-- **Backend:** Java 21, Spring Boot, RestClient
-- **Gen AI:** Google Gemini API (`gemini-2.5-flash`)
-- **Frontend:** HTML5, Tailwind CSS, Vanilla JavaScript, Leaflet.js, Chart.js
-- **Geospatial & Telemetry APIs:** Open-Meteo Air Quality & Weather API, OpenStreetMap (Nominatim & Overpass), OSRM Routing API
+## Key Features
+- **Live Micro-Zone Simulation (POST /api/simulate):** Models household PM2.5 exposure reduction, safe outdoor dispersion windows, monthly CO2 savings, and community-wide impact across ward types and vulnerable groups.
+- **Context-Grounded Gemini AI Advisor (POST /api/chat):** Delivers concise, actionable lung-health and ventilation recommendations anchored to live local pollutant metrics, backed by a bounded 10-minute TTL response cache and deterministic offline fallbacks.
+- **Hardened Input Validation & Security:** Sanitizes control characters, enforces payload length limits, clamps numeric pollutant bounds, sets defensive HTTP security headers, and prevents stack-trace exposure via centralized @RestControllerAdvice.
+- **Accessible Interactive UI:** Semantic ARIA landmarks, aria-live status regions, and responsive ward-level visual guidance.
 
-## Local Setup
+## Architecture Overview
+- controller/VayuTwinController.java: REST endpoints (/api/health, /api/simulate, /api/chat)
+- controller/GlobalExceptionHandler.java: Centralized JSON error handling
+- model/SimulationRequest.java & SimulationResponse.java: Request/response payloads
+- service/AirQualityService.java: Live/baseline AQI & safe dispersion window engine
+- service/GeminiAdvisorService.java: Gemini API integration, TTL cache & fallbacks
 
-1. Clone the repository:
-   ```bash
-   git clone [https://github.com/Srimaha02/vayutwin.git](https://github.com/Srimaha02/vayutwin.git)
-   cd vayutwin
+## Local Setup & Running
+1. Set optional environment variable: GEMINI_API_KEY
+2. Start server: ./mvnw spring-boot:run
+3. Run tests: ./mvnw clean test
