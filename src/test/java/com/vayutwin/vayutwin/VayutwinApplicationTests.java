@@ -14,8 +14,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
-import java.util.Map;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -56,8 +54,8 @@ class VayutwinApplicationTests {
     }
 
     @Test
-    @DisplayName("POST /api/chat returns contextual air-quality advice")
-    void chatEndpointReturnsValidReply() throws Exception {
+    @DisplayName("POST /api/chat returns contextual advice and security headers")
+    void chatEndpointReturnsValidReplyAndHeaders() throws Exception {
         String payload = """
                 {
                   "question": "When should I open my windows today?",
@@ -73,17 +71,37 @@ class VayutwinApplicationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isOk())
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(header().string("X-Frame-Options", "SAMEORIGIN"))
                 .andExpect(jsonPath("$.reply").isNotEmpty());
     }
 
     @Test
-    @DisplayName("Controller handles missing optional parameters with safe defaults")
-    void chatEndpointHandlesDefaultValues() {
-        Map<String, Object> minimalRequest = Map.of("question", "Is it safe for a morning walk?");
-        Map<String, Object> response = controller.chat(minimalRequest);
-        assertNotNull(response);
-        assertTrue(response.containsKey("reply"));
-        assertFalse(String.valueOf(response.get("reply")).isBlank());
+    @DisplayName("POST /api/chat rejects empty questions with HTTP 400")
+    void chatEndpointRejectsEmptyQuestion() throws Exception {
+        mockMvc.perform(post("/api/chat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\":\"   \"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("Controller safely handles missing or malformed numeric telemetry")
+    void chatEndpointHandlesMalformedNumbers() throws Exception {
+        String payload = """
+                {
+                  "question": "Is it safe for a morning walk?",
+                  "aqi": "invalid",
+                  "pm25": -50
+                }
+                """;
+
+        mockMvc.perform(post("/api/chat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reply").isNotEmpty());
     }
 
     @Test

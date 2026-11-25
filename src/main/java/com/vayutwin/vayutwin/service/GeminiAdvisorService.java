@@ -2,17 +2,29 @@ package com.vayutwin.vayutwin.service;
 
 import com.vayutwin.vayutwin.model.SimulationRequest;
 import com.vayutwin.vayutwin.model.SimulationResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Service responsible for generating hyperlocal air-quality recommendations
+ * via Google Gemini API with a bounded TTL response cache and deterministic fallbacks.
+ */
 @Service
 public class GeminiAdvisorService {
+
+    private static final Logger log = LoggerFactory.getLogger(GeminiAdvisorService.class);
+    private static final long CACHE_TTL_MILLIS = 10 * 60 * 1000L;
+    private static final int MAX_CACHE_ENTRIES = 250;
 
     @Value("${gemini.api.key:}")
     private String apiKey;
@@ -22,11 +34,27 @@ public class GeminiAdvisorService {
 
     private final AirQualityService airQualityService;
     private final RestClient restClient = RestClient.create();
+    private final Map<String, CachedReply> responseCache = new ConcurrentHashMap<>();
+
+    private record CachedReply(String reply, long expiresAt) {
+        boolean isExpired() {
+            return Instant.now().toEpochMilli() > expiresAt;
+        }
+    }
 
     public GeminiAdvisorService(AirQualityService airQualityService) {
         this.airQualityService = airQualityService;
     }
+
     public String answerAirQuestion(String question, String location, int aqi, double pm25, double pm10, double no2) {
+        String cacheKey = location + "|" + (aqi / 10) + "|" + question.trim().toLowerCase();
+        CachedReply cached = responseCache.get(cacheKey);
+        if (cached != null && !cached.isExpired()) {
+            log.debug("Serving cached Gemini air advice for location='{}'", location);
+            return cached.reply();
+        }
+
+        String resolvedReply = null;
         if (apiKey != null && !apiKey.isBlank()) {
             try {
                 String prompt = "You are VayuTwin AI, an urban atmospheric and lung-health advisor. "
@@ -35,24 +63,39 @@ public class GeminiAdvisorService {
                         + "Answer the user's question directly, practically, and specifically in 3-4 concise sentences grounded in these live numbers: "
                         + question;
 
-                String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey.trim();
+                String url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey.trim();
                 Map<String, Object> body = Map.of(
                         "contents", List.of(Map.of("parts", List.of(Map.of("text", prompt))))
                 );
-                Map root = restClient.post().uri(url)
+
+                @SuppressWarnings("unchecked")
+                Map<String, Object> root = restClient.post().uri(url)
                         .contentType(MediaType.APPLICATION_JSON).body(body).retrieve().body(Map.class);
-                if (root != null && root.get("candidates") instanceof List candidates && !candidates.isEmpty()) {
-                    Map first = (Map) candidates.get(0);
-                    Map content = (Map) first.get("content");
-                    List parts = (List) content.get("parts");
-                    Object text = ((Map) parts.get(0)).get("text");
-                    if (text != null && !text.toString().isBlank()) {
-                        return text.toString().trim();
-                    }
+
+                String text = extractCandidateText(root);
+                if (text != null && !text.isBlank()) {
+                    resolvedReply = text.trim();
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ex) {
+                log.warn("Gemini API call failed for location='{}', using deterministic fallback: {}", location, ex.getMessage());
+            }
         }
 
+        if (resolvedReply == null) {
+            resolvedReply = buildFallbackAdvice(question, location, aqi, pm25, pm10, no2);
+        }
+
+        if (responseCache.size() >= MAX_CACHE_ENTRIES) {
+            responseCache.entrySet().removeIf(e -> e.getValue().isExpired());
+            if (responseCache.size() >= MAX_CACHE_ENTRIES) {
+                responseCache.clear();
+            }
+        }
+        responseCache.put(cacheKey, new CachedReply(resolvedReply, Instant.now().toEpochMilli() + CACHE_TTL_MILLIS));
+        return resolvedReply;
+    }
+
+    private String buildFallbackAdvice(String question, String location, int aqi, double pm25, double pm10, double no2) {
         String q = question.toLowerCase();
         if (q.contains("circulat") || q.contains("ventilat") || q.contains("indoor") || q.contains("home")) {
             return "In " + location + " (PM2.5: " + pm25 + " µg/m³), create cross-ventilation only between 11:30 AM and 3:30 PM when outdoor inversion lifts. During peak traffic hours, keep road-facing windows shut, run kitchen/bath exhaust fans to create gentle negative-pressure air extraction, and wet-mop floors so settled dust doesn't recirculate.";
@@ -65,6 +108,7 @@ public class GeminiAdvisorService {
         }
         return "In " + location + ", live AQI is " + aqi + " with PM2.5 at " + pm25 + " µg/m³ and PM10 at " + pm10 + " µg/m³. Prioritize outdoor errands during the 11 AM–4 PM dispersion window, use an N95 mask near heavy traffic, and wet-mop indoor surfaces daily.";
     }
+
     public SimulationResponse simulate(SimulationRequest req) {
         String city = (req.getCity() == null || req.getCity().isBlank()) ? "Chennai" : req.getCity();
         String zone = (req.getZoneType() == null) ? "MAIN_ROAD" : req.getZoneType();
@@ -111,7 +155,7 @@ public class GeminiAdvisorService {
         double communityCo2 = Math.round(co2Saved * flats * 0.85 * 10.0) / 10.0;
         co2Saved = Math.round(co2Saved * 10.0) / 10.0;
 
-        AiGuidance guidance = fetchGeminiGuidance(snap, zone, house, commute, req, reductionPct, co2Saved, flats, communityCo2);
+        AiGuidance guidance = fetchGeminiGuidance(snap, zone, house, commute, reductionPct, co2Saved, flats, communityCo2);
 
         return new SimulationResponse(
                 snap.resolvedCity(), snap.aqi(), snap.pm25(), snap.category(), snap.safeWindow(),
@@ -131,7 +175,7 @@ public class GeminiAdvisorService {
     @SuppressWarnings("unchecked")
     private AiGuidance fetchGeminiGuidance(
             AirQualityService.AqiSnapshot snap, String zone, String house, String commute,
-            SimulationRequest req, int reductionPct, double co2Saved, int flats, double communityCo2
+            int reductionPct, double co2Saved, int flats, double communityCo2
     ) {
         if (apiKey != null && !apiKey.isBlank()) {
             try {
@@ -142,7 +186,7 @@ public class GeminiAdvisorService {
                         + ". Reply ONLY in JSON with keys: directImpactSummary (string), dailyRoutineTips (3 strings), "
                         + "indoorAirHacks (3 strings), sustainableSwaps (2 strings), whatsappCommunityNotice (string).";
 
-                String url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey;
+                String url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey.trim();
                 Map<String, Object> body = Map.of(
                         "contents", List.of(Map.of("parts", List.of(Map.of("text", prompt)))),
                         "generationConfig", Map.of("responseMimeType", "application/json")
@@ -151,12 +195,8 @@ public class GeminiAdvisorService {
                 Map<String, Object> root = restClient.post().uri(url)
                         .contentType(MediaType.APPLICATION_JSON).body(body).retrieve().body(Map.class);
 
-                if (root != null && root.get("candidates") instanceof List<?> candidates && !candidates.isEmpty()) {
-                    Map<String, Object> first = (Map<String, Object>) candidates.get(0);
-                    Map<String, Object> content = (Map<String, Object>) first.get("content");
-                    List parts = (List) content.get("parts");
-                    String jsonText = String.valueOf(((Map) parts.get(0)).get("text"));
-
+                String jsonText = extractCandidateText(root);
+                if (jsonText != null && !jsonText.isBlank()) {
                     String summary = readStr(jsonText, "directImpactSummary");
                     List<String> routine = readArr(jsonText, "dailyRoutineTips");
                     List<String> hacks = readArr(jsonText, "indoorAirHacks");
@@ -167,7 +207,9 @@ public class GeminiAdvisorService {
                         return new AiGuidance(summary, routine, hacks, swaps, notice, true);
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ex) {
+                log.warn("Structured Gemini guidance failed, using fallback: {}", ex.getMessage());
+            }
         }
 
         String summary = "In " + snap.resolvedCity() + " (AQI " + snap.aqi() + "), your active habits cut household PM2.5 lung exposure by "
@@ -194,6 +236,18 @@ public class GeminiAdvisorService {
         return new AiGuidance(summary, routine, hacks, swaps, notice, false);
     }
 
+    @SuppressWarnings("unchecked")
+    private String extractCandidateText(Map<String, Object> root) {
+        if (root == null || !(root.get("candidates") instanceof List<?> candidates) || candidates.isEmpty()) {
+            return null;
+        }
+        Map<String, Object> first = (Map<String, Object>) candidates.get(0);
+        if (!(first.get("content") instanceof Map<?, ?> content)) return null;
+        if (!(content.get("parts") instanceof List<?> parts) || parts.isEmpty()) return null;
+        Object text = ((Map<String, Object>) parts.get(0)).get("text");
+        return text != null ? text.toString() : null;
+    }
+
     private String readStr(String json, String key) {
         int idx = json.indexOf(key);
         if (idx < 0) return "";
@@ -202,7 +256,7 @@ public class GeminiAdvisorService {
         while (end > 0 && json.charAt(end - 1) == '\\') {
             end = json.indexOf('"', end + 1);
         }
-return (start > 0 && end > start) ? json.substring(start + 1, end) : "";
+        return (start > 0 && end > start) ? json.substring(start + 1, end) : "";
     }
 
     private List<String> readArr(String json, String key) {
