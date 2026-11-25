@@ -13,22 +13,26 @@
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: #D6DFDA;
-            color: #1B2623;
+            color: #16221E;
             -webkit-font-smoothing: antialiased;
         }
         .mono { font-family: 'JetBrains Mono', monospace; }
         .matte-card {
             background-color: #ECF0EE;
-            border: 1px solid #C0CCC6;
+            border: 1px solid #B5C3BC;
             box-shadow: 0 4px 20px -4px rgba(20, 34, 29, 0.08);
         }
         .inner-tile {
             background-color: #E2E8E5;
-            border: 1px solid #C5D1CB;
+            border: 1px solid #BCC9C2;
         }
-        .nav-active { background-color: #27473E; color: #ECF0EE; }
-        .nav-inactive { color: #3A4B45; }
-        .nav-inactive:hover { background-color: #D3DDD8; }
+        .nav-active { background-color: #1E3B33; color: #FFFFFF; }
+        .nav-inactive { color: #243630; }
+        .nav-inactive:hover { background-color: #CFDAD4; }
+        button:focus-visible, input:focus-visible, select:focus-visible {
+            outline: 3px solid #1E3B33;
+            outline-offset: 2px;
+        }
         #wardMap {
             height: 315px;
             width: 100%;
@@ -40,179 +44,183 @@
 </head>
 <body class="min-h-screen flex flex-col">
 
+<a href="#mainContent" class="sr-only focus:not-sr-only focus:p-3 focus:bg-[#1E3B33] focus:text-white focus:font-bold">
+    Skip to main air quality dashboard
+</a>
+
 <!-- TOP HEADER -->
-<header class="bg-[#E4ECE8]/95 backdrop-blur-md border-b border-[#C0CCC6] sticky top-0 z-30">
+<header class="bg-[#E4ECE8]/95 backdrop-blur-md border-b border-[#B5C3BC] sticky top-0 z-30" role="banner">
     <div class="max-w-7xl mx-auto px-5 py-3 flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-xl bg-[#27473E] text-[#ECF0EE] flex items-center justify-center">
+            <div class="w-9 h-9 rounded-xl bg-[#1E3B33] text-white flex items-center justify-center" aria-hidden="true">
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                     <path d="M3 10h12a2.5 2.5 0 1 0-2.3-3.4M3 15h16a2 2 0 1 1-1.8 2.8M5 19h7"/>
                 </svg>
             </div>
             <div>
                 <h1 class="text-base font-extrabold tracking-tight text-[#16221E]">VayuTwin</h1>
-                <p class="text-[11px] text-[#495A54]">Hyperlocal Air Twin, Green Oasis Finder &amp; Civic Smoke Radar</p>
+                <p class="text-[11px] text-[#354640]">Hyperlocal Air Twin, Green Oasis Finder &amp; Civic Smoke Radar</p>
             </div>
         </div>
 
-        <nav class="flex flex-wrap items-center gap-1 bg-[#DAE3DF] p-1 rounded-2xl border border-[#BFCBC5]">
-            <button onclick="goToPage(1)" id="tab1" class="nav-active px-3 py-1.5 rounded-xl text-xs font-bold transition">1. Green Oasis &amp; Route Map</button>
-            <button onclick="goToPage(2)" id="tab2" class="nav-inactive px-3 py-1.5 rounded-xl text-xs font-bold transition">2. Window &amp; Walk Clock</button>
-            <button onclick="goToPage(3)" id="tab3" class="nav-inactive px-3 py-1.5 rounded-xl text-xs font-bold transition">3. Zero-Cost Room Guide</button>
-            <button onclick="goToPage(4)" id="tab4" class="nav-inactive px-3 py-1.5 rounded-xl text-xs font-bold transition">4. My Daily Impact</button>
-            <button onclick="goToPage(5)" id="tab5" class="nav-inactive px-3 py-1.5 rounded-xl text-xs font-bold transition">5. Gemini Air Co-Pilot</button>
+        <nav aria-label="VayuTwin Feature Steps" role="tablist" class="flex flex-wrap items-center gap-1 bg-[#DAE3DF] p-1 rounded-2xl border border-[#B5C3BC]">
+            <button role="tab" aria-selected="true" aria-controls="page1" onclick="goToPage(1)" id="tab1" class="nav-active px-3 py-1.5 rounded-xl text-xs font-bold transition">1. Green Oasis &amp; Route Map</button>
+            <button role="tab" aria-selected="false" aria-controls="page2" onclick="goToPage(2)" id="tab2" class="nav-inactive px-3 py-1.5 rounded-xl text-xs font-bold transition">2. Window &amp; Walk Clock</button>
+            <button role="tab" aria-selected="false" aria-controls="page3" onclick="goToPage(3)" id="tab3" class="nav-inactive px-3 py-1.5 rounded-xl text-xs font-bold transition">3. Zero-Cost Room Guide</button>
+            <button role="tab" aria-selected="false" aria-controls="page4" onclick="goToPage(4)" id="tab4" class="nav-inactive px-3 py-1.5 rounded-xl text-xs font-bold transition">4. My Daily Impact</button>
+            <button role="tab" aria-selected="false" aria-controls="page5" onclick="goToPage(5)" id="tab5" class="nav-inactive px-3 py-1.5 rounded-xl text-xs font-bold transition">5. Gemini Air Co-Pilot</button>
         </nav>
 
-        <span id="aiBadge" class="mono text-[11px] font-bold px-3 py-1.5 rounded-xl bg-[#DAE3DF] border border-[#BFCBC5] text-[#27473E]">
+        <span id="aiBadge" role="status" aria-live="polite" class="mono text-[11px] font-bold px-3 py-1.5 rounded-xl bg-[#DAE3DF] border border-[#B5C3BC] text-[#1E3B33]">
             ● Live Sync
         </span>
     </div>
 </header>
 
-<main class="max-w-7xl mx-auto px-5 py-5 w-full flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+<main id="mainContent" class="max-w-7xl mx-auto px-5 py-5 w-full flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
 
     <!-- LEFT 8 COLUMNS -->
     <div class="lg:col-span-8 space-y-4">
 
-        <!-- ==================== PAGE 1: EXACT HOME-DESTINATION ROUTE + GREEN OASIS + SMOKE RADAR ==================== -->
-        <section id="page1" class="matte-card rounded-3xl p-6 space-y-4">
-            <div class="bg-[#DAE6E0] border border-[#B0C4BA] rounded-2xl p-3.5 text-xs text-[#1B352E] flex flex-wrap items-center justify-between gap-2">
+        <!-- ==================== PAGE 1 ==================== -->
+        <section id="page1" role="tabpanel" aria-labelledby="tab1" class="matte-card rounded-3xl p-6 space-y-4">
+            <div class="bg-[#DAE6E0] border border-[#A5B9AF] rounded-2xl p-3.5 text-xs text-[#16221E] flex flex-wrap items-center justify-between gap-2">
                 <div>
                     <strong>Step 1 • Street Scanner &amp; Commute Route Mapper:</strong> Type your <strong>Start (H)</strong> &amp; <strong>Destination (D)</strong> below—or select a map click mode to pin directly on the map.
                 </div>
-                <div class="flex flex-wrap gap-1.5">
-                    <button onclick="setPinMode('HOME')" id="btnPinHome" class="px-2.5 py-1 rounded-lg bg-[#27473E] text-[#ECF0EE] font-bold text-[11px]">Click = Home (H)</button>
-                    <button onclick="setPinMode('WORK')" id="btnPinWork" class="px-2.5 py-1 rounded-lg bg-[#ECF0EE] border border-[#27473E] text-[#27473E] font-bold text-[11px]">Click = Dest (D)</button>
-                    <button onclick="setPinMode('SMOKE')" id="btnPinSmoke" class="px-2.5 py-1 rounded-lg bg-[#ECF0EE] border border-[#8C3B2B] text-[#8C3B2B] font-bold text-[11px]">Click = Flag Smoke</button>
+                <div class="flex flex-wrap gap-1.5" role="group" aria-label="Map Click Pin Mode">
+                    <button type="button" onclick="setPinMode('HOME')" id="btnPinHome" aria-pressed="true" class="px-2.5 py-1 rounded-lg bg-[#1E3B33] text-white font-bold text-[11px]">Click = Home (H)</button>
+                    <button type="button" onclick="setPinMode('WORK')" id="btnPinWork" aria-pressed="false" class="px-2.5 py-1 rounded-lg bg-[#ECF0EE] border border-[#1E3B33] text-[#1E3B33] font-bold text-[11px]">Click = Dest (D)</button>
+                    <button type="button" onclick="setPinMode('SMOKE')" id="btnPinSmoke" aria-pressed="false" class="px-2.5 py-1 rounded-lg bg-[#ECF0EE] border border-[#7A2E20] text-[#7A2E20] font-bold text-[11px]">Click = Flag Smoke</button>
                 </div>
             </div>
 
             <!-- DUAL SEARCH INPUTS FOR EXACT HOME (H) -> DESTINATION (D) ROUTING -->
             <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center text-xs">
-                <div class="sm:col-span-5 flex items-center gap-1.5 bg-[#E2E8E5] border border-[#B5C3BC] rounded-xl px-2.5 py-1.5">
-                    <span class="w-5 h-5 rounded-full bg-[#27473E] text-[#ECF0EE] flex items-center justify-center font-extrabold text-[10px] shrink-0">H</span>
-                    <input type="text" id="homeInput" value="Sholinganallur, Chennai" placeholder="Home / Start area..."
+                <div class="sm:col-span-5 flex items-center gap-1.5 bg-[#E2E8E5] border border-[#A5B9AF] rounded-xl px-2.5 py-1.5">
+                    <label for="homeInput" class="w-5 h-5 rounded-full bg-[#1E3B33] text-white flex items-center justify-center font-extrabold text-[10px] shrink-0" title="Home or Start Location">H</label>
+                    <input type="text" id="homeInput" aria-label="Home or Start Location" value="Sholinganallur, Chennai" placeholder="Home / Start area..."
                            onkeydown="if(event.key==='Enter') mapRouteFromInputs()"
-                           class="w-full bg-transparent font-bold text-[#16221E] focus:outline-none">
+                           class="w-full bg-transparent font-bold text-[#16221E]">
                 </div>
-                <div class="sm:col-span-5 flex items-center gap-1.5 bg-[#E2E8E5] border border-[#B5C3BC] rounded-xl px-2.5 py-1.5">
-                    <span class="w-5 h-5 rounded-full bg-[#8C3B2B] text-[#ECF0EE] flex items-center justify-center font-extrabold text-[10px] shrink-0">D</span>
-                    <input type="text" id="destInput" value="Guindy, Chennai" placeholder="Destination area..."
+                <div class="sm:col-span-5 flex items-center gap-1.5 bg-[#E2E8E5] border border-[#A5B9AF] rounded-xl px-2.5 py-1.5">
+                    <label for="destInput" class="w-5 h-5 rounded-full bg-[#7A2E20] text-white flex items-center justify-center font-extrabold text-[10px] shrink-0" title="Destination Location">D</label>
+                    <input type="text" id="destInput" aria-label="Destination Location" value="Guindy, Chennai" placeholder="Destination area..."
                            onkeydown="if(event.key==='Enter') mapRouteFromInputs()"
-                           class="w-full bg-transparent font-bold text-[#16221E] focus:outline-none">
+                           class="w-full bg-transparent font-bold text-[#16221E]">
                 </div>
-                <button onclick="mapRouteFromInputs()" class="sm:col-span-2 py-2 rounded-xl bg-[#27473E] text-[#ECF0EE] font-bold hover:opacity-95">
+                <button type="button" onclick="mapRouteFromInputs()" class="sm:col-span-2 py-2 rounded-xl bg-[#1E3B33] text-white font-bold hover:opacity-95">
                     Map Route
                 </button>
             </div>
 
             <!-- Quick City Presets -->
-            <div class="flex flex-wrap items-center gap-1.5 text-xs">
-                <span class="text-[11px] font-bold text-[#495A54]">Quick Presets:</span>
-                <button onclick="setPresetRoute('Sholinganallur, Chennai', 'Guindy, Chennai')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] border border-[#C0CCC6] font-semibold">OMR → Guindy</button>
-                <button onclick="setPresetRoute('Anna Nagar, Chennai', 'T Nagar, Chennai')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] border border-[#C0CCC6] font-semibold">Anna Nagar → T Nagar</button>
-                <button onclick="setPresetRoute('Indiranagar, Bengaluru', 'Electronic City, Bengaluru')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] border border-[#C0CCC6] font-semibold">Bengaluru</button>
-                <button onclick="setPresetRoute('Andheri West, Mumbai', 'BKC, Mumbai')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] border border-[#C0CCC6] font-semibold">Mumbai</button>
-                <button onclick="setPresetRoute('Connaught Place, New Delhi', 'Noida Sector 62')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] border border-[#C0CCC6] font-semibold">Delhi NCR</button>
+            <div class="flex flex-wrap items-center gap-1.5 text-xs" role="group" aria-label="Quick City Route Presets">
+                <span class="text-[11px] font-bold text-[#354640]">Quick Presets:</span>
+                <button type="button" onclick="setPresetRoute('Sholinganallur, Chennai', 'Guindy, Chennai')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] border border-[#B5C3BC] font-semibold">OMR → Guindy</button>
+                <button type="button" onclick="setPresetRoute('Anna Nagar, Chennai', 'T Nagar, Chennai')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] border border-[#B5C3BC] font-semibold">Anna Nagar → T Nagar</button>
+                <button type="button" onclick="setPresetRoute('Indiranagar, Bengaluru', 'Electronic City, Bengaluru')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] border border-[#B5C3BC] font-semibold">Bengaluru</button>
+                <button type="button" onclick="setPresetRoute('Andheri West, Mumbai', 'BKC, Mumbai')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] border border-[#B5C3BC] font-semibold">Mumbai</button>
+                <button type="button" onclick="setPresetRoute('Connaught Place, New Delhi', 'Noida Sector 62')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] border border-[#B5C3BC] font-semibold">Delhi NCR</button>
             </div>
 
             <!-- Interactive Map -->
-            <div id="wardMap" class="border border-[#B5C3BC]"></div>
+            <div id="wardMap" role="region" aria-label="Interactive Air Quality and Commute Route Map" class="border border-[#A5B9AF]"></div>
 
             <!-- WALKABLE CLEAN-AIR GREEN OASIS POCKETS -->
-            <div class="inner-tile rounded-2xl p-4 space-y-2">
+            <div class="inner-tile rounded-2xl p-4 space-y-2" aria-live="polite">
                 <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
-                    <strong class="text-[#16221E]">Nearby Clean-Air Green Pockets (Parks &amp; Lakes)</strong>
-                    <span id="oasisCountTag" class="mono text-[11px] font-bold px-2.5 py-0.5 rounded-lg bg-[#DAE6E0] text-[#27473E]">Scanning green pockets...</span>
+                    <h2 class="font-bold text-[#16221E]">Nearby Clean-Air Green Pockets (Parks &amp; Lakes)</h2>
+                    <span id="oasisCountTag" class="mono text-[11px] font-bold px-2.5 py-0.5 rounded-lg bg-[#DAE6E0] text-[#1E3B33]">Scanning green pockets...</span>
                 </div>
                 <div id="greenOasisList" class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs"></div>
             </div>
 
-            <!-- SAFE CROWDSOURCED STREET CAUTION PANEL (WITH CONFIRM, UNDO & 2-HR AUTO-EXPIRE) -->
-            <div id="smokeAlertPanel" class="hidden inner-tile rounded-2xl p-4 border-l-4 border-l-[#8C3B2B] bg-[#F3E9E6] space-y-2 text-xs">
+            <!-- SAFE CROWDSOURCED STREET CAUTION PANEL -->
+            <div id="smokeAlertPanel" role="alert" class="hidden inner-tile rounded-2xl p-4 border-l-4 border-l-[#7A2E20] bg-[#F3E9E6] space-y-2 text-xs">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <div class="flex items-center gap-2">
-                        <strong class="text-[#8C3B2B]">Temporary Street Smoke / Dust Caution</strong>
-                        <span class="mono text-[10px] px-2 py-0.5 rounded bg-[#8C3B2B]/15 text-[#8C3B2B] font-bold">Auto-clears in 2 hrs</span>
+                        <strong class="text-[#7A2E20]">Temporary Street Smoke / Dust Caution</strong>
+                        <span class="mono text-[10px] px-2 py-0.5 rounded bg-[#7A2E20]/15 text-[#7A2E20] font-bold">Auto-clears in 2 hrs</span>
                     </div>
                     <div class="flex gap-1.5">
-                        <button onclick="undoLastSmokePin()" class="px-2.5 py-1 rounded-lg bg-[#ECF0EE] border border-[#8C3B2B] text-[#8C3B2B] text-[11px] font-bold">Undo Pin</button>
-                        <button onclick="copySmokeReport()" id="copySmokeBtn" class="px-3 py-1 rounded-lg bg-[#8C3B2B] text-[#ECF0EE] text-[11px] font-bold">Copy Street Alert</button>
+                        <button type="button" onclick="undoLastSmokePin()" class="px-2.5 py-1 rounded-lg bg-[#ECF0EE] border border-[#7A2E20] text-[#7A2E20] text-[11px] font-bold">Undo Pin</button>
+                        <button type="button" onclick="copySmokeReport()" id="copySmokeBtn" class="px-3 py-1 rounded-lg bg-[#7A2E20] text-white text-[11px] font-bold">Copy Street Alert</button>
                     </div>
                 </div>
-                <p id="smokeReportText" class="text-[#2B1E1B] leading-relaxed"></p>
+                <p id="smokeReportText" class="text-[#16221E] leading-relaxed"></p>
             </div>
 
             <!-- Real Road Commute Corridor Comparison Bar -->
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs" aria-live="polite">
                 <div class="inner-tile rounded-2xl p-3.5">
-                    <span class="text-[10px] font-bold uppercase text-[#495A54] block">Road Route Distance (H → D)</span>
+                    <span class="text-[10px] font-bold uppercase text-[#354640] block">Road Route Distance (H → D)</span>
                     <strong id="corridorDist" class="mono text-sm text-[#16221E] mt-1 block">-- km</strong>
-                    <span class="text-[11px] text-[#495A54]">Real road path via OSRM</span>
+                    <span class="text-[11px] text-[#354640]">Real road path via OSRM</span>
                 </div>
-                <div class="inner-tile rounded-2xl p-3.5 border-l-4 border-l-[#8C3B2B]">
-                    <span class="text-[10px] font-bold uppercase text-[#8C3B2B] block">Main Highway (No Mask)</span>
+                <div class="inner-tile rounded-2xl p-3.5 border-l-4 border-l-[#7A2E20]">
+                    <span class="text-[10px] font-bold uppercase text-[#7A2E20] block">Main Highway (No Mask)</span>
                     <strong id="highwayDose" class="mono text-base text-[#16221E] mt-0.5 block">-- µg / day</strong>
-                    <span id="highwayPlain" class="text-[11px] text-[#8C3B2B] font-semibold">--</span>
+                    <span id="highwayPlain" class="text-[11px] text-[#7A2E20] font-semibold">--</span>
                 </div>
-                <div class="inner-tile rounded-2xl p-3.5 border-l-4 border-l-[#27473E] bg-[#DAE6E0]">
-                    <span class="text-[10px] font-bold uppercase text-[#27473E] block">Green Side-Lane + N95</span>
+                <div class="inner-tile rounded-2xl p-3.5 border-l-4 border-l-[#1E3B33] bg-[#DAE6E0]">
+                    <span class="text-[10px] font-bold uppercase text-[#1E3B33] block">Green Side-Lane + N95</span>
                     <strong id="greenDose" class="mono text-base text-[#16221E] mt-0.5 block">-- µg / day</strong>
-                    <span id="greenPlain" class="text-[11px] text-[#27473E] font-bold">--</span>
+                    <span id="greenPlain" class="text-[11px] text-[#1E3B33] font-bold">--</span>
                 </div>
             </div>
 
             <div class="flex justify-end">
-                <button onclick="goToPage(2)" class="px-5 py-2.5 rounded-xl bg-[#27473E] text-[#ECF0EE] text-xs font-bold">
+                <button type="button" onclick="goToPage(2)" class="px-5 py-2.5 rounded-xl bg-[#1E3B33] text-white text-xs font-bold">
                     Next: Live Window-Opening &amp; Walk Clock →
                 </button>
             </div>
         </section>
 
-        <!-- ==================== PAGE 2: WINDOW-OPENING & WIND DISPERSION SCHEDULER ==================== -->
-        <section id="page2" class="hidden matte-card rounded-3xl p-6 space-y-4">
-            <div class="bg-[#DAE6E0] border border-[#B0C4BA] rounded-2xl p-3.5 text-xs text-[#1B352E]">
+        <!-- ==================== PAGE 2 ==================== -->
+        <section id="page2" role="tabpanel" aria-labelledby="tab2" class="hidden matte-card rounded-3xl p-6 space-y-4">
+            <div class="bg-[#DAE6E0] border border-[#A5B9AF] rounded-2xl p-3.5 text-xs text-[#16221E]">
                 <strong>Step 2 • Smart Window &amp; Outdoor Clock:</strong> Combines live hourly PM2.5 + Wind Speed to tell you the exact hours to <strong>open windows for fresh cross-ventilation</strong> vs. <strong>seal windows against thermal smog</strong>.
             </div>
 
             <div class="flex items-center justify-between">
                 <h2 class="text-base font-extrabold text-[#16221E]">24-Hour Smog &amp; Wind Dispersion Curve</h2>
-                <span id="chartLocationTag" class="mono text-xs font-bold px-3 py-1 rounded-xl bg-[#E2E8E5] border border-[#C0CCC6]">Chennai</span>
+                <span id="chartLocationTag" class="mono text-xs font-bold px-3 py-1 rounded-xl bg-[#E2E8E5] border border-[#B5C3BC]">Chennai</span>
             </div>
 
             <div class="inner-tile rounded-2xl p-4 h-64">
-                <canvas id="smogChart"></canvas>
+                <canvas id="smogChart" role="img" aria-label="24-Hour PM2.5 Air Pollution Trend Line Chart"></canvas>
             </div>
 
             <div class="space-y-2">
-                <span class="text-[11px] font-extrabold uppercase tracking-wider text-[#495A54]">Hour-by-Hour Window &amp; Outdoor Status</span>
+                <h3 class="text-[11px] font-extrabold uppercase tracking-wider text-[#354640]">Hour-by-Hour Window &amp; Outdoor Status</h3>
                 <div id="windowScheduleGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs"></div>
             </div>
 
             <div class="flex justify-between pt-1">
-                <button onclick="goToPage(1)" class="px-4 py-2 rounded-xl bg-[#E2E8E5] border border-[#B5C3BC] text-xs font-bold">← Back</button>
-                <button onclick="goToPage(3)" class="px-5 py-2.5 rounded-xl bg-[#27473E] text-[#ECF0EE] text-xs font-bold">Next: Zero-Cost Room Guide →</button>
+                <button type="button" onclick="goToPage(1)" class="px-4 py-2 rounded-xl bg-[#E2E8E5] border border-[#A5B9AF] text-xs font-bold">← Back</button>
+                <button type="button" onclick="goToPage(3)" class="px-5 py-2.5 rounded-xl bg-[#1E3B33] text-white text-xs font-bold">Next: Zero-Cost Room Guide →</button>
             </div>
         </section>
 
-        <!-- ==================== PAGE 3: ZERO-COST ROOM & ROUTINE AIR GUIDE ==================== -->
-        <section id="page3" class="hidden matte-card rounded-3xl p-6 space-y-4">
-            <div class="bg-[#DAE6E0] border border-[#B0C4BA] rounded-2xl p-3.5 text-xs text-[#1B352E]">
+        <!-- ==================== PAGE 3 ==================== -->
+        <section id="page3" role="tabpanel" aria-labelledby="tab3" class="hidden matte-card rounded-3xl p-6 space-y-4">
+            <div class="bg-[#DAE6E0] border border-[#A5B9AF] rounded-2xl p-3.5 text-xs text-[#16221E]">
                 <strong>Step 3 • Zero-Cost Room &amp; Routine Air Guide:</strong> Select your living space and daily schedule below to get <strong>100% free, practical habits</strong> that keep indoor dust low without buying any gadgets.
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <div>
-                    <label class="font-bold text-[#16221E] block mb-1">1. Your Living Space</label>
-                    <select id="roomType" onchange="buildRoomPlan()" class="w-full bg-[#E2E8E5] border border-[#B5C3BC] rounded-xl px-3 py-2 font-semibold">
+                    <label for="roomType" class="font-bold text-[#16221E] block mb-1">1. Your Living Space</label>
+                    <select id="roomType" onchange="buildRoomPlan()" class="w-full bg-[#E2E8E5] border border-[#A5B9AF] rounded-xl px-3 py-2 font-semibold">
                         <option value="BEDROOM" selected>Bedroom (Night Sleep Protection)</option>
                         <option value="HALL">Main-Road Facing Hall / Living Room</option>
                         <option value="HOSTEL">Hostel / PG Room (Single Window)</option>
                     </select>
                 </div>
                 <div>
-                    <label class="font-bold text-[#16221E] block mb-1">2. Who Is Home &amp; Daily Routine</label>
-                    <select id="routineType" onchange="buildRoomPlan()" class="w-full bg-[#E2E8E5] border border-[#B5C3BC] rounded-xl px-3 py-2 font-semibold">
+                    <label for="routineType" class="font-bold text-[#16221E] block mb-1">2. Who Is Home &amp; Daily Routine</label>
+                    <select id="routineType" onchange="buildRoomPlan()" class="w-full bg-[#E2E8E5] border border-[#A5B9AF] rounded-xl px-3 py-2 font-semibold">
                         <option value="COMMUTER" selected>College / Office Commuter</option>
                         <option value="WFH">Work / Study From Home All Day</option>
                         <option value="FAMILY">Kids or Elderly Parents at Home</option>
@@ -220,176 +228,177 @@
                 </div>
             </div>
 
-            <div id="roomPlanCards" class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs"></div>
+            <div id="roomPlanCards" class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs" aria-live="polite"></div>
 
-            <div class="inner-tile rounded-2xl p-4 bg-[#DAE6E0] border-[#B0C4BA] flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div class="inner-tile rounded-2xl p-4 bg-[#DAE6E0] border-[#A5B9AF] flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span id="roomEfficiencyText" class="font-bold text-[#16221E]">Zero-Cost Indoor Dust Reduction: ~42% (No gadgets needed)</span>
-                <button onclick="askAiForRoom()" class="px-3.5 py-1.5 rounded-xl bg-[#27473E] text-[#ECF0EE] font-bold">Ask Gemini for Custom Routine →</button>
+                <button type="button" onclick="askAiForRoom()" class="px-3.5 py-1.5 rounded-xl bg-[#1E3B33] text-white font-bold">Ask Gemini for Custom Routine →</button>
             </div>
 
             <div class="flex justify-between pt-1">
-                <button onclick="goToPage(2)" class="px-4 py-2 rounded-xl bg-[#E2E8E5] border border-[#B5C3BC] text-xs font-bold">← Back</button>
-                <button onclick="goToPage(4)" class="px-5 py-2.5 rounded-xl bg-[#27473E] text-[#ECF0EE] text-xs font-bold">Next: My Daily Impact →</button>
+                <button type="button" onclick="goToPage(2)" class="px-4 py-2 rounded-xl bg-[#E2E8E5] border border-[#A5B9AF] text-xs font-bold">← Back</button>
+                <button type="button" onclick="goToPage(4)" class="px-5 py-2.5 rounded-xl bg-[#1E3B33] text-white text-xs font-bold">Next: My Daily Impact →</button>
             </div>
         </section>
 
-        <!-- ==================== PAGE 4: PERSONAL CLEAN-AIR HABIT IMPACT SIMULATOR ==================== -->
-        <section id="page4" class="hidden matte-card rounded-3xl p-6 space-y-4">
-            <div class="bg-[#DAE6E0] border border-[#B0C4BA] rounded-2xl p-3.5 text-xs text-[#1B352E]">
+        <!-- ==================== PAGE 4 ==================== -->
+        <section id="page4" role="tabpanel" aria-labelledby="tab4" class="hidden matte-card rounded-3xl p-6 space-y-4">
+            <div class="bg-[#DAE6E0] border border-[#A5B9AF] rounded-2xl p-3.5 text-xs text-[#16221E]">
                 <strong>Step 4 • My Personal Clean-Air Impact:</strong> Adjust your daily commute distance and toggle the habits below—watch the chart update live to show how much carbon smoke and lung dust <strong>you</strong> prevent in 1 year.
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <div class="inner-tile rounded-2xl p-3.5 space-y-1.5">
-                    <label class="font-bold text-[#16221E] block">Daily Round-Trip Travel: <span id="kmLabel" class="mono text-[#27473E]">15 km / day</span></label>
-                    <input type="range" id="dailyKm" min="2" max="60" step="1" value="15" oninput="updateColonyImpact()" class="w-full accent-[#27473E]">
-                    <span class="text-[11px] text-[#495A54] block">College, office, or daily errands</span>
+                    <label for="dailyKm" class="font-bold text-[#16221E] block">Daily Round-Trip Travel: <span id="kmLabel" class="mono text-[#1E3B33]">15 km / day</span></label>
+                    <input type="range" id="dailyKm" min="2" max="60" step="1" value="15" oninput="updateColonyImpact()" class="w-full accent-[#1E3B33]">
+                    <span class="text-[11px] text-[#354640] block">College, office, or daily errands</span>
                 </div>
 
-                <div class="inner-tile rounded-2xl p-3.5 flex items-center justify-between">
+                <div class="inner-tile rounded-2xl p-3.5 flex items-center justify-between" aria-live="polite">
                     <div>
-                        <span class="text-[10px] font-bold uppercase text-[#495A54] block">Your Carbon Smoke Cut</span>
-                        <strong id="colonyCo2" class="mono text-xl text-[#27473E]">-- kg / yr</strong>
+                        <span class="text-[10px] font-bold uppercase text-[#354640] block">Your Carbon Smoke Cut</span>
+                        <strong id="colonyCo2" class="mono text-xl text-[#1E3B33]">-- kg / yr</strong>
                     </div>
                     <div>
-                        <span class="text-[10px] font-bold uppercase text-[#495A54] block">Lung Dust Prevented</span>
+                        <span class="text-[10px] font-bold uppercase text-[#354640] block">Lung Dust Prevented</span>
                         <strong id="colonyPm" class="mono text-xl text-[#16221E]">-- g / yr</strong>
                     </div>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-                <label class="inner-tile flex items-start justify-between gap-2 p-3 rounded-2xl cursor-pointer hover:border-[#27473E] transition">
+                <label for="chkTransit" class="inner-tile flex items-start justify-between gap-2 p-3 rounded-2xl cursor-pointer hover:border-[#1E3B33] transition">
                     <div>
                         <span class="font-bold text-[#16221E] block">Metro / Bus / Carpool</span>
-                        <span class="text-[11px] text-[#495A54]">3 days a week</span>
+                        <span class="text-[11px] text-[#354640]">3 days a week</span>
                     </div>
-                    <input type="checkbox" id="chkTransit" checked onchange="updateColonyImpact()" class="w-4 h-4 mt-0.5 accent-[#27473E]">
+                    <input type="checkbox" id="chkTransit" checked onchange="updateColonyImpact()" class="w-4 h-4 mt-0.5 accent-[#1E3B33]">
                 </label>
 
-                <label class="inner-tile flex items-start justify-between gap-2 p-3 rounded-2xl cursor-pointer hover:border-[#27473E] transition">
+                <label for="chkPower" class="inner-tile flex items-start justify-between gap-2 p-3 rounded-2xl cursor-pointer hover:border-[#1E3B33] transition">
                     <div>
                         <span class="font-bold text-[#16221E] block">24–26°C AC &amp; Power Save</span>
-                        <span class="text-[11px] text-[#495A54]">Switch off idle loads</span>
+                        <span class="text-[11px] text-[#354640]">Switch off idle loads</span>
                     </div>
-                    <input type="checkbox" id="chkPower" checked onchange="updateColonyImpact()" class="w-4 h-4 mt-0.5 accent-[#27473E]">
+                    <input type="checkbox" id="chkPower" checked onchange="updateColonyImpact()" class="w-4 h-4 mt-0.5 accent-[#1E3B33]">
                 </label>
 
-                <label class="inner-tile flex items-start justify-between gap-2 p-3 rounded-2xl cursor-pointer hover:border-[#27473E] transition">
+                <label for="chkNoBurn" class="inner-tile flex items-start justify-between gap-2 p-3 rounded-2xl cursor-pointer hover:border-[#1E3B33] transition">
                     <div>
                         <span class="font-bold text-[#16221E] block">Zero Leaf / Waste Burning</span>
-                        <span class="text-[11px] text-[#495A54]">Compost dry garden waste</span>
+                        <span class="text-[11px] text-[#354640]">Compost dry garden waste</span>
                     </div>
-                    <input type="checkbox" id="chkNoBurn" checked onchange="updateColonyImpact()" class="w-4 h-4 mt-0.5 accent-[#27473E]">
+                    <input type="checkbox" id="chkNoBurn" checked onchange="updateColonyImpact()" class="w-4 h-4 mt-0.5 accent-[#1E3B33]">
                 </label>
             </div>
 
             <div class="inner-tile rounded-2xl p-4 space-y-2">
                 <div class="flex items-center justify-between text-xs">
-                    <strong class="text-[#16221E]">Which Habit Saves the Most Pollution?</strong>
-                    <span class="text-[11px] text-[#495A54]">Measured in kg of CO₂ cut per year</span>
+                    <h3 class="font-bold text-[#16221E]">Which Habit Saves the Most Pollution?</h3>
+                    <span class="text-[11px] text-[#354640]">Measured in kg of CO₂ cut per year</span>
                 </div>
                 <div class="h-44">
-                    <canvas id="impactBarChart"></canvas>
+                    <canvas id="impactBarChart" role="img" aria-label="Annual Carbon Dioxide Reduction by Clean-Air Habit Bar Chart"></canvas>
                 </div>
             </div>
 
             <div class="inner-tile rounded-2xl p-4 space-y-2">
                 <div class="flex items-center justify-between">
-                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-[#27473E]">Ready-to-Share Clean-Air Action Note</span>
-                    <button onclick="copyCivicNotice()" id="copyBtn" class="px-3 py-1 rounded-lg bg-[#27473E] text-[#ECF0EE] text-[11px] font-bold">Copy Note</button>
+                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-[#1E3B33]">Ready-to-Share Clean-Air Action Note</span>
+                    <button type="button" onclick="copyCivicNotice()" id="copyBtn" class="px-3 py-1 rounded-lg bg-[#1E3B33] text-white text-[11px] font-bold">Copy Note</button>
                 </div>
-                <pre id="civicNoticeText" class="whitespace-pre-wrap font-sans text-xs text-[#1F2D29] bg-[#ECF0EE] p-3 rounded-xl border border-[#C0CCC6] leading-relaxed"></pre>
+                <pre id="civicNoticeText" class="whitespace-pre-wrap font-sans text-xs text-[#16221E] bg-[#ECF0EE] p-3 rounded-xl border border-[#B5C3BC] leading-relaxed"></pre>
             </div>
 
             <div class="flex justify-between pt-1">
-                <button onclick="goToPage(3)" class="px-4 py-2 rounded-xl bg-[#E2E8E5] border border-[#B5C3BC] text-xs font-bold">← Back</button>
-                <button onclick="goToPage(5)" class="px-5 py-2.5 rounded-xl bg-[#27473E] text-[#ECF0EE] text-xs font-bold">Next: Ask Gemini AI Co-Pilot →</button>
+                <button type="button" onclick="goToPage(3)" class="px-4 py-2 rounded-xl bg-[#E2E8E5] border border-[#A5B9AF] text-xs font-bold">← Back</button>
+                <button type="button" onclick="goToPage(5)" class="px-5 py-2.5 rounded-xl bg-[#1E3B33] text-white text-xs font-bold">Next: Ask Gemini AI Co-Pilot →</button>
             </div>
         </section>
 
-        <!-- ==================== PAGE 5: REAL GEMINI AI CO-PILOT ==================== -->
-        <section id="page5" class="hidden matte-card rounded-3xl p-6 space-y-4">
-            <div class="bg-[#DAE6E0] border border-[#B0C4BA] rounded-2xl p-3.5 text-xs text-[#1B352E]">
+        <!-- ==================== PAGE 5 ==================== -->
+        <section id="page5" role="tabpanel" aria-labelledby="tab5" class="hidden matte-card rounded-3xl p-6 space-y-4">
+            <div class="bg-[#DAE6E0] border border-[#A5B9AF] rounded-2xl p-3.5 text-xs text-[#16221E]">
                 <strong>Step 5 • Live Gemini AI Air Advisor:</strong> Ask any question about your exact street's air quality, nearby green walk parks, asthma care, or indoor ventilation.
             </div>
 
-            <div class="flex flex-wrap gap-1.5">
-                <button onclick="askQuick('When should I open my windows today based on wind and PM2.5?')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] hover:bg-[#D3DDD8] border border-[#B5C3BC] text-[11px] font-semibold">Best window opening time?</button>
-                <button onclick="askQuick('How can I improve air circulation inside my room without letting smog in?')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] hover:bg-[#D3DDD8] border border-[#B5C3BC] text-[11px] font-semibold">Indoor air circulation?</button>
-                <button onclick="askQuick('What precautions should a 2-wheeler rider take at this AQI?')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] hover:bg-[#D3DDD8] border border-[#B5C3BC] text-[11px] font-semibold">2-wheeler protection?</button>
+            <div class="flex flex-wrap gap-1.5" role="group" aria-label="Sample Air Quality Questions">
+                <button type="button" onclick="askQuick('When should I open my windows today based on wind and PM2.5?')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] hover:bg-[#D3DDD8] border border-[#A5B9AF] text-[11px] font-semibold">Best window opening time?</button>
+                <button type="button" onclick="askQuick('How can I improve air circulation inside my room without letting smog in?')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] hover:bg-[#D3DDD8] border border-[#A5B9AF] text-[11px] font-semibold">Indoor air circulation?</button>
+                <button type="button" onclick="askQuick('What precautions should a 2-wheeler rider take at this AQI?')" class="px-2.5 py-1 rounded-lg bg-[#E2E8E5] hover:bg-[#D3DDD8] border border-[#A5B9AF] text-[11px] font-semibold">2-wheeler protection?</button>
             </div>
 
-            <div id="chatBox" class="inner-tile rounded-2xl p-4 h-60 overflow-y-auto space-y-3 text-xs leading-relaxed">
+            <div id="chatBox" role="log" aria-live="polite" aria-label="Gemini AI Air Advisor Conversation" class="inner-tile rounded-2xl p-4 h-60 overflow-y-auto space-y-3 text-xs leading-relaxed">
                 <div class="bg-[#DAE6E0] rounded-xl p-3 text-[#16221E]">
                     <strong>VayuTwin AI:</strong> Live telemetry loaded for <span id="chatLocLabel" class="font-bold">Chennai</span>. Ask anything below!
                 </div>
             </div>
 
             <div class="flex gap-2">
+                <label for="chatInput" class="sr-only">Ask any air quality question</label>
                 <input type="text" id="chatInput" placeholder="Ask any question..." onkeydown="if(event.key==='Enter') sendChat()"
-                       class="flex-1 bg-[#E2E8E5] border border-[#B5C3BC] rounded-xl px-3.5 py-2.5 text-xs text-[#16221E] focus:outline-none focus:border-[#27473E]">
-                <button onclick="sendChat()" class="px-5 py-2.5 rounded-xl bg-[#27473E] text-[#ECF0EE] text-xs font-bold">Ask AI</button>
+                       class="flex-1 bg-[#E2E8E5] border border-[#A5B9AF] rounded-xl px-3.5 py-2.5 text-xs text-[#16221E]">
+                <button type="button" onclick="sendChat()" class="px-5 py-2.5 rounded-xl bg-[#1E3B33] text-white text-xs font-bold">Ask AI</button>
             </div>
         </section>
     </div>
 
     <!-- RIGHT 4 COLUMNS: ALWAYS-VISIBLE LIVE ATMOSPHERIC TELEMETRY -->
-    <aside class="lg:col-span-4 matte-card rounded-3xl p-5 space-y-4">
+    <aside aria-label="Live Street Air Quality Telemetry" aria-live="polite" class="lg:col-span-4 matte-card rounded-3xl p-5 space-y-4">
         <div class="flex items-start justify-between">
             <div>
-                <span class="mono text-[10px] font-bold uppercase tracking-wider text-[#495A54]">Active Street Sensor</span>
-                <h3 id="pinnedPlaceName" class="text-base font-extrabold text-[#16221E] mt-0.5">Sholinganallur, Chennai</h3>
-                <p id="pinnedCoords" class="mono text-[11px] text-[#495A54]">12.9010° N, 80.2279° E</p>
+                <span class="mono text-[10px] font-bold uppercase tracking-wider text-[#354640]">Active Street Sensor</span>
+                <h2 id="pinnedPlaceName" class="text-base font-extrabold text-[#16221E] mt-0.5">Sholinganallur, Chennai</h2>
+                <p id="pinnedCoords" class="mono text-[11px] text-[#354640]">12.9010° N, 80.2279° E</p>
             </div>
-            <span id="verdictChip" class="text-xs font-extrabold px-3 py-1 rounded-full bg-amber-900/10 text-amber-900">Moderate</span>
+            <span id="verdictChip" class="text-xs font-extrabold px-3 py-1 rounded-full bg-amber-900/15 text-amber-950">Moderate</span>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
             <div class="inner-tile rounded-2xl p-3.5">
-                <span class="text-[11px] font-bold text-[#495A54] block">Live US AQI</span>
+                <span class="text-[11px] font-bold text-[#354640] block">Live US AQI</span>
                 <span id="liveAqi" class="mono text-2xl font-extrabold text-[#16221E] mt-1 block">--</span>
-                <span class="text-[10px] text-[#586862]">Under 50 is Clean</span>
+                <span class="text-[10px] text-[#354640]">Under 50 is Clean</span>
             </div>
             <div class="inner-tile rounded-2xl p-3.5">
-                <span class="text-[11px] font-bold text-[#495A54] block">Passive Smoke</span>
-                <span id="cigEqText" class="mono text-xl font-extrabold text-[#8C3B2B] mt-1 block">-- cig/d</span>
-                <span class="text-[10px] text-[#586862]">22 µg PM2.5 ≈ 1 cig</span>
+                <span class="text-[11px] font-bold text-[#354640] block">Passive Smoke</span>
+                <span id="cigEqText" class="mono text-xl font-extrabold text-[#7A2E20] mt-1 block">-- cig/d</span>
+                <span class="text-[10px] text-[#354640]">22 µg PM2.5 ≈ 1 cig</span>
             </div>
         </div>
 
         <div class="inner-tile rounded-2xl p-4 space-y-2.5">
-            <span class="text-[11px] font-extrabold uppercase tracking-wider text-[#27473E] block">Live Pollutant Spectrum</span>
+            <h3 class="text-[11px] font-extrabold uppercase tracking-wider text-[#1E3B33] block">Live Pollutant Spectrum</h3>
             <div class="grid grid-cols-2 gap-2 text-xs">
                 <div class="bg-[#ECF0EE] rounded-xl p-2.5">
-                    <span class="text-[10px] text-[#495A54] block">Fine Dust (PM2.5)</span>
+                    <span class="text-[10px] text-[#354640] block">Fine Dust (PM2.5)</span>
                     <strong id="valPm25" class="mono text-sm text-[#16221E]">-- µg/m³</strong>
                 </div>
                 <div class="bg-[#ECF0EE] rounded-xl p-2.5">
-                    <span class="text-[10px] text-[#495A54] block">Road Dust (PM10)</span>
+                    <span class="text-[10px] text-[#354640] block">Road Dust (PM10)</span>
                     <strong id="valPm10" class="mono text-sm text-[#16221E]">-- µg/m³</strong>
                 </div>
                 <div class="bg-[#ECF0EE] rounded-xl p-2.5">
-                    <span class="text-[10px] text-[#495A54] block">Traffic Gas (NO₂)</span>
+                    <span class="text-[10px] text-[#354640] block">Traffic Gas (NO₂)</span>
                     <strong id="valNo2" class="mono text-sm text-[#16221E]">-- µg/m³</strong>
                 </div>
                 <div class="bg-[#ECF0EE] rounded-xl p-2.5">
-                    <span class="text-[10px] text-[#495A54] block">Ground Ozone (O₃)</span>
+                    <span class="text-[10px] text-[#354640] block">Ground Ozone (O₃)</span>
                     <strong id="valO3" class="mono text-sm text-[#16221E]">-- µg/m³</strong>
                 </div>
                 <div class="bg-[#ECF0EE] rounded-xl p-2.5">
-                    <span class="text-[10px] text-[#495A54] block">Wind Dispersion</span>
+                    <span class="text-[10px] text-[#354640] block">Wind Dispersion</span>
                     <strong id="valWind" class="mono text-sm text-[#16221E]">-- km/h</strong>
                 </div>
                 <div class="bg-[#ECF0EE] rounded-xl p-2.5">
-                    <span class="text-[10px] text-[#495A54] block">Sun UV Index</span>
+                    <span class="text-[10px] text-[#354640] block">Sun UV Index</span>
                     <strong id="valUv" class="mono text-sm text-[#16221E]">--</strong>
                 </div>
             </div>
         </div>
 
-        <div class="inner-tile rounded-2xl p-3.5 bg-[#DAE6E0] border-[#B0C4BA]">
-            <span class="text-[11px] font-bold text-[#27473E] block">Right Now Window Action</span>
+        <div class="inner-tile rounded-2xl p-3.5 bg-[#DAE6E0] border-[#A5B9AF]">
+            <span class="text-[11px] font-bold text-[#1E3B33] block">Right Now Window Action</span>
             <p id="windowNowAdvice" class="text-xs font-extrabold text-[#16221E] mt-1">Checking wind dispersion...</p>
         </div>
     </aside>
@@ -412,7 +421,9 @@
     function goToPage(num) {
         [1, 2, 3, 4, 5].forEach(p => {
             document.getElementById('page' + p).classList.toggle('hidden', p !== num);
-            document.getElementById('tab' + p).className = (p === num ? 'nav-active' : 'nav-inactive')
+            const tab = document.getElementById('tab' + p);
+            tab.setAttribute('aria-selected', p === num ? 'true' : 'false');
+            tab.className = (p === num ? 'nav-active' : 'nav-inactive')
                 + ' px-3 py-1.5 rounded-xl text-xs font-bold transition';
         });
         if (num === 1 && map) setTimeout(() => map.invalidateSize(), 100);
@@ -423,21 +434,25 @@
 
     function setPinMode(mode) {
         pinMode = mode;
+        document.getElementById('btnPinHome').setAttribute('aria-pressed', mode === 'HOME');
+        document.getElementById('btnPinWork').setAttribute('aria-pressed', mode === 'WORK');
+        document.getElementById('btnPinSmoke').setAttribute('aria-pressed', mode === 'SMOKE');
+
         document.getElementById('btnPinHome').className = mode === 'HOME'
-            ? 'px-2.5 py-1 rounded-lg bg-[#27473E] text-[#ECF0EE] font-bold text-[11px]'
-            : 'px-2.5 py-1 rounded-lg bg-[#ECF0EE] border border-[#27473E] text-[#27473E] font-bold text-[11px]';
+            ? 'px-2.5 py-1 rounded-lg bg-[#1E3B33] text-white font-bold text-[11px]'
+            : 'px-2.5 py-1 rounded-lg bg-[#ECF0EE] border border-[#1E3B33] text-[#1E3B33] font-bold text-[11px]';
         document.getElementById('btnPinWork').className = mode === 'WORK'
-            ? 'px-2.5 py-1 rounded-lg bg-[#27473E] text-[#ECF0EE] font-bold text-[11px]'
-            : 'px-2.5 py-1 rounded-lg bg-[#ECF0EE] border border-[#27473E] text-[#27473E] font-bold text-[11px]';
+            ? 'px-2.5 py-1 rounded-lg bg-[#1E3B33] text-white font-bold text-[11px]'
+            : 'px-2.5 py-1 rounded-lg bg-[#ECF0EE] border border-[#1E3B33] text-[#1E3B33] font-bold text-[11px]';
         document.getElementById('btnPinSmoke').className = mode === 'SMOKE'
-            ? 'px-2.5 py-1 rounded-lg bg-[#8C3B2B] text-[#ECF0EE] font-bold text-[11px]'
-            : 'px-2.5 py-1 rounded-lg bg-[#ECF0EE] border border-[#8C3B2B] text-[#8C3B2B] font-bold text-[11px]';
+            ? 'px-2.5 py-1 rounded-lg bg-[#7A2E20] text-white font-bold text-[11px]'
+            : 'px-2.5 py-1 rounded-lg bg-[#ECF0EE] border border-[#7A2E20] text-[#7A2E20] font-bold text-[11px]';
     }
 
     function makePinIcon(label, bg) {
         return L.divIcon({
             className: '',
-            html: `<div style="background:${bg};color:#ECF0EE;width:28px;height:28px;border-radius:50%;border:2.5px solid #ECF0EE;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;box-shadow:0 3px 10px rgba(0,0,0,0.35);">${label}</div>`,
+            html: `<div style="background:${bg};color:#FFFFFF;width:28px;height:28px;border-radius:50%;border:2.5px solid #FFFFFF;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;box-shadow:0 3px 10px rgba(0,0,0,0.35);">${label}</div>`,
             iconSize: [28, 28],
             iconAnchor: [14, 14]
         });
@@ -450,11 +465,11 @@
         oasisLayer = L.layerGroup().addTo(map);
         smokeLayer = L.layerGroup().addTo(map);
 
-        homeMarker = L.marker([state.homeLat, state.homeLng], { icon: makePinIcon('H', '#27473E') })
+        homeMarker = L.marker([state.homeLat, state.homeLng], { icon: makePinIcon('H', '#1E3B33'), alt: 'Home or Start Location Marker' })
             .addTo(map)
             .bindTooltip('Home / Start (H)');
 
-        workMarker = L.marker([state.workLat, state.workLng], { icon: makePinIcon('D', '#8C3B2B') })
+        workMarker = L.marker([state.workLat, state.workLng], { icon: makePinIcon('D', '#7A2E20'), alt: 'Destination Location Marker' })
             .addTo(map)
             .bindTooltip('Destination (D)');
 
@@ -549,7 +564,7 @@
         } catch (e) {}
 
         if (routeLine) map.removeLayer(routeLine);
-        routeLine = L.polyline(coords, { color: '#27473E', weight: 4.5, opacity: 0.88 }).addTo(map);
+        routeLine = L.polyline(coords, { color: '#1E3B33', weight: 4.5, opacity: 0.88 }).addTo(map);
         map.fitBounds(L.latLngBounds([[state.homeLat, state.homeLng], [state.workLat, state.workLng]]), { padding: [45, 45] });
 
         const doseHigh = (state.pm25 * 1.45 * 0.015 * mins * 2).toFixed(1);
@@ -584,10 +599,8 @@
                 .slice(0, 3);
         } catch (e) {}
 
-        // Reliable Nominatim fallback if Overpass is busy
         if (spots.length === 0) {
             try {
-                const cityPart = state.name.split(',').pop().trim();
                 const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&accept-language=en&limit=3&q=${encodeURIComponent('park near ' + state.name)}`);
                 const nomData = await nomRes.json();
                 spots = (nomData || []).map(item => {
@@ -604,7 +617,7 @@
 
         if (spots.length === 0) {
             tag.innerText = 'Tree-Canopy Side Lanes Active';
-            list.innerHTML = `<div class="col-span-3 bg-[#ECF0EE] rounded-xl p-2.5 text-[#495A54]">
+            list.innerHTML = `<div class="col-span-3 bg-[#ECF0EE] rounded-xl p-2.5 text-[#354640]">
                 Walk along inner residential tree-lined streets—PM2.5 is ~25% lower than main arterial roads.
             </div>`;
             return;
@@ -616,13 +629,13 @@
             const cleanerPm = (state.pm25 * 0.72).toFixed(1);
 
             L.circleMarker([spot.pLat, spot.pLng], {
-                radius: 9, fillColor: '#15803D', color: '#ECF0EE', weight: 2.5, fillOpacity: 0.92
+                radius: 9, fillColor: '#15803D', color: '#FFFFFF', weight: 2.5, fillOpacity: 0.92
             }).addTo(oasisLayer).bindPopup(`<strong>🌿 ${spot.name}</strong><br>${walkMins} min walk (${spot.distM}m)<br>Est. PM2.5: <b>${cleanerPm} µg/m³</b>`);
 
-            return `<div class="bg-[#ECF0EE] rounded-xl p-2.5 border border-[#B0C4BA]">
-                <strong class="text-[#1B352E] block truncate">🌿 ${spot.name}</strong>
-                <span class="mono text-[11px] text-[#27473E] font-bold">${walkMins} min walk (${spot.distM}m) • ~${cleanerPm} µg/m³</span>
-                <span class="text-[10px] text-[#495A54] block">~28% lower dust than traffic road</span>
+            return `<div class="bg-[#ECF0EE] rounded-xl p-2.5 border border-[#A5B9AF]">
+                <strong class="text-[#16221E] block truncate">🌿 ${spot.name}</strong>
+                <span class="mono text-[11px] text-[#1E3B33] font-bold">${walkMins} min walk (${spot.distM}m) • ~${cleanerPm} µg/m³</span>
+                <span class="text-[10px] text-[#354640] block">~28% lower dust than traffic road</span>
             </div>`;
         }).join('');
     }
@@ -630,7 +643,7 @@
     function reportLocalSmokeHotspot(lat, lng) {
         if (!confirm('Flag temporary smoke or construction dust at this spot? (You can undo anytime)')) return;
         lastSmokeMarker = L.circleMarker([lat, lng], {
-            radius: 10, fillColor: '#8C3B2B', color: '#ECF0EE', weight: 3, fillOpacity: 0.95
+            radius: 10, fillColor: '#7A2E20', color: '#FFFFFF', weight: 3, fillOpacity: 0.95
         }).addTo(smokeLayer).bindPopup(`<strong>⚠️ Temporary Dust / Smoke Caution</strong><br>Auto-clears in 2 hrs`).openPopup();
 
         const panel = document.getElementById('smokeAlertPanel');
@@ -733,12 +746,12 @@
                 datasets: [{
                     label: 'PM2.5 (µg/m³)',
                     data: state.hourlyPm25,
-                    borderColor: '#27473E',
-                    backgroundColor: 'rgba(39, 71, 62, 0.14)',
+                    borderColor: '#1E3B33',
+                    backgroundColor: 'rgba(30, 59, 51, 0.14)',
                     borderWidth: 2.5,
                     fill: true,
                     tension: 0.35,
-                    pointBackgroundColor: state.hourlyPm25.map(v => v > 45 ? '#8C3B2B' : '#27473E'),
+                    pointBackgroundColor: state.hourlyPm25.map(v => v > 45 ? '#7A2E20' : '#1E3B33'),
                     pointRadius: 5
                 }]
             },
@@ -749,9 +762,9 @@
         grid.innerHTML = state.hourlyLabels.map((hr, idx) => {
             const val = state.hourlyPm25[idx];
             const safe = val <= 40;
-            return `<div class="inner-tile rounded-xl p-2.5 ${safe ? 'bg-[#DAE6E0] border-[#B0C4BA]' : ''}">
+            return `<div class="inner-tile rounded-xl p-2.5 ${safe ? 'bg-[#DAE6E0] border-[#A5B9AF]' : ''}">
                 <span class="mono font-bold text-[#16221E] block">${hr} • ${val} µg</span>
-                <span class="text-[11px] font-bold ${safe ? 'text-[#27473E]' : 'text-[#8C3B2B]'}">${safe ? 'Open Windows' : 'Seal Windows'}</span>
+                <span class="text-[11px] font-bold ${safe ? 'text-[#1E3B33]' : 'text-[#7A2E20]'}">${safe ? 'Open Windows' : 'Seal Windows'}</span>
             </div>`;
         }).join('');
     }
@@ -801,7 +814,7 @@
         document.getElementById('roomPlanCards').innerHTML = cards.map(c =>
             `<div class="inner-tile rounded-2xl p-4 space-y-1.5">
                 <strong class="text-[#16221E] block">${c.title}</strong>
-                <p class="text-[#495A54] leading-relaxed">${c.desc}</p>
+                <p class="text-[#354640] leading-relaxed">${c.desc}</p>
             </div>`
         ).join('');
     }
@@ -840,7 +853,7 @@
                 datasets: [{
                     label: 'kg CO₂ Cut / Year',
                     data: [transitKg, powerKg, burnKg],
-                    backgroundColor: ['#27473E', '#3D6B5E', '#6B8E82'],
+                    backgroundColor: ['#1E3B33', '#355E52', '#5B7D72'],
                     borderRadius: 8
                 }]
             },
@@ -885,11 +898,11 @@ Live Air Reading: US AQI ${state.aqi} | PM2.5: ${state.pm25} µg/m³ | NO₂: ${
         input.value = '';
 
         const box = document.getElementById('chatBox');
-        box.innerHTML += `<div class="bg-[#27473E] text-[#ECF0EE] rounded-xl p-3 ml-12">${q}</div>`;
+        box.innerHTML += `<div class="bg-[#1E3B33] text-white rounded-xl p-3 ml-12">${q}</div>`;
         box.scrollTop = box.scrollHeight;
 
         const typingId = 'typing-' + Date.now();
-        box.innerHTML += `<div id="${typingId}" class="bg-[#DAE6E0] rounded-xl p-3 mr-10 text-[#495A54]">Analyzing ${state.name} air telemetry...</div>`;
+        box.innerHTML += `<div id="${typingId}" class="bg-[#DAE6E0] rounded-xl p-3 mr-10 text-[#354640]">Analyzing ${state.name} air telemetry...</div>`;
 
         try {
             const res = await fetch('/api/chat', {
